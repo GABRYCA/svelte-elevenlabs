@@ -190,20 +190,43 @@ PAGES_BASE_PATH=/svelte-elevenlabs
 
 The demo reads public values through SvelteKit 3's explicit environment contract in [`src/env.ts`](src/env.ts) and `$app/env/public`. The API key is read from `process.env` only inside the server route. The legacy `$env/dynamic/*` modules are deprecated in SvelteKit 3.
 
-`build:pages` forces `PUBLIC_HOSTING_MODE=static`. `PAGES_BASE_PATH` is read from the environment for any build, because SvelteKit reloads the Vite config after the build without the original mode. The Pages workflow provides both values.
+`build:pages` forces `PUBLIC_HOSTING_MODE=static`. `PAGES_BASE_PATH` is read from the environment for any build, because SvelteKit reloads the Vite config after the build without the original mode. The release workflow provides both values.
 
-## GitHub Pages deployment
+## GitHub automation
 
-The workflow lives in [`.github/workflows/pages.yml`](.github/workflows/pages.yml). It uses the official Pages actions and uploads `build`.
+The repository ships two workflows. Both install Bun 1.4.3 and use the current major versions of the official GitHub Actions.
+
+### Release and Pages
+
+[`.github/workflows/release.yml`](.github/workflows/release.yml) runs on every push to `main` and on manual dispatch:
+
+1. It reads the version from `package.json`.
+2. It checks for the matching `v<version>` tag and GitHub release.
+3. When either is missing, it creates an annotated tag on the pushed commit and publishes a GitHub release with generated notes and the packed npm tarball.
+4. It builds the static demo, uploads the Pages artifact and a downloadable demo artifact, then deploys GitHub Pages.
+5. It builds the library with `prepack` and uploads `svelte-elevenlabs-<version>.tgz` as a workflow artifact.
+
+A version bump is the release switch. Update `package.json` and `CHANGELOG.md` in the same pull request, merge to `main`, and the tag is created automatically. A push without a version bump still deploys Pages and refreshes the artifacts, but it does not create a duplicate tag or release.
+
+Workflow artifacts are retained for 14 days:
+
+- `svelte-elevenlabs-<version>` contains the publishable npm tarball.
+- `svelte-elevenlabs-static-demo` contains the full static demo, including `.nojekyll`.
+
+To enable Pages:
 
 1. Open repository **Settings**, then **Pages**, and set the source to **GitHub Actions**.
 2. Optionally add the repository variable `PUBLIC_ELEVENLABS_AGENT_ID` with a public agent id.
 3. Optionally set the repository variable `PAGES_BASE_PATH` for a custom domain or user site. When it is empty, the workflow uses the `base_path` output from `actions/configure-pages`.
-4. Push to `main` or run the workflow manually.
+4. Confirm that the repository allows the workflow token to write contents. The release job requests `contents: write` only for the tag push and GitHub release.
 
-The artifact contains `index.html`, `_app` assets, `favicon.svg`, and `.nojekyll`. Asset URLs are relative, so the same build works at a project site path or at a domain root.
+The static artifact contains `index.html`, `_app` assets, `favicon.svg`, and `.nojekyll`. Asset URLs are relative, so the same build works at a project site path or at a domain root.
 
 Do not add `ELEVENLABS_API_KEY` to repository variables, Pages secrets, or any `PUBLIC_*` name. The static build cannot use it and must not receive it.
+
+### Pull request CI
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on pull requests and manual dispatch. It type-checks Svelte and TypeScript, runs the offline test suite, checks formatting and lint, builds the Node app and package, and builds the static demo. A second job runs the same offline suite under Node 22.17, the minimum supported Node version. Live ElevenLabs tests are never enabled in CI.
 
 ## API reference
 
@@ -357,6 +380,36 @@ import {
 - **Cleanup:** sockets, `MediaStream` tracks, AudioWorklet URLs, analyser nodes, both audio contexts, ping timers, signed URL aborts, scroll timers, and animation frames are released.
 - **Target validation:** the client rejects malformed agent ids and non-WebSocket URLs before it asks for microphone permission.
 
+## Testing
+
+The default suite is offline and deterministic:
+
+```sh
+bun run test
+```
+
+It covers audio format parsing, resampling, PCM16 and µ-law encoding and decoding, `AudioManager` browser guards, protocol parsing, target validation, URL normalization, close messages, error classes, the signed URL route, and reactive controller state. Vitest runs in the Node environment with the Svelte plugin, so rune modules compile without a browser. No microphone, Web Audio, network, or API key is required.
+
+Live tests are opt-in because they consume ElevenLabs quota and are not part of the default suite, CI, or the release workflow:
+
+```sh
+ELEVENLABS_LIVE_TESTS=1 \
+ELEVENLABS_API_KEY=your_key_here \
+ELEVENLABS_AGENT_ID=agent_yourAgentId \
+bun run test:live
+```
+
+On Windows PowerShell:
+
+```powershell
+$env:ELEVENLABS_LIVE_TESTS = '1'
+$env:ELEVENLABS_API_KEY = 'your_key_here'
+$env:ELEVENLABS_AGENT_ID = 'agent_yourAgentId'
+bun run test:live
+```
+
+The live suite checks agent REST access and signed URL minting. Set `ELEVENLABS_LIVE_CONVERSATION=1` to also open a real WebSocket conversation and wait for the initiation metadata. That last test is the most expensive, so it stays skipped unless you ask for it explicitly. The live suite fails fast with a clear message when a required variable is missing.
+
 ## Development
 
 Bun 1.4 or newer is required for the repository scripts. Node 22.17 or newer is supported for running the default server output.
@@ -365,7 +418,8 @@ Bun 1.4 or newer is required for the repository scripts. Node 22.17 or newer is 
 bun install
 bun run dev          # showcase at http://localhost:5173
 bun run check        # strict TypeScript and Svelte diagnostics
-bun run test         # Vitest
+bun run test         # offline Vitest suite
+bun run test:live    # opt-in ElevenLabs API tests
 bun run build        # Node app build, package prepack, and publint
 bun run build:pages  # static GitHub Pages build
 bun run build:bun    # optional Bun server build
@@ -376,7 +430,7 @@ bun run format
 
 The project uses SvelteKit 3, whose Vite configuration lives in `vite.config.ts`. There is no `svelte.config.js`. Route-level prerendering is enabled only for the Pages mode in `src/routes/+layout.ts`.
 
-The Pages workflow is the only CI. It installs with a frozen lockfile, builds the static demo, and deploys the artifact.
+The release workflow runs on every push to `main`, tags new package versions, publishes GitHub releases, deploys Pages, and uploads build artifacts. Pull request CI runs the same checks without touching ElevenLabs quota. Both install with a frozen lockfile.
 
 ### Package layout
 
@@ -387,6 +441,7 @@ src/
     index.ts                      # public export surface
     types/index.ts                # strict protocol and public API types
     runes/useConversation.svelte.ts
+    protocol/helpers.ts           # testable protocol and target helpers
     audio/audioManager.ts
     components/AudioVisualizer.svelte
     components/ConversationWidget.svelte
@@ -398,7 +453,7 @@ src/
 
 ## Publishing
 
-The package version is `0.2.0`. `prepack` runs `svelte-kit sync`, `svelte-package`, and `publint`, so `dist` is rebuilt from source before every publish.
+The package version is `0.3.0`. `prepack` runs `svelte-kit sync`, `svelte-package`, and `publint`, so `dist` is rebuilt from source before every publish.
 
 ```sh
 bun run prepack
@@ -407,6 +462,8 @@ npm publish --access public
 ```
 
 `publishConfig.access` is already `public`. The published files are limited to `dist`, and the package exposes the root entry plus the `audio`, `types`, and `package.json` subpaths.
+
+When you push a version bump to `main`, the release workflow creates the `v<version>` tag, publishes the GitHub release, and attaches the same tarball that `bun pm pack` produces. You can still publish to npm manually from that tarball.
 
 ## Security checklist
 

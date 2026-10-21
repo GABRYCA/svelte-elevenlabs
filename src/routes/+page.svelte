@@ -6,7 +6,7 @@
 	const configuredAgentId = (PUBLIC_ELEVENLABS_AGENT_ID ?? '').trim();
 	const staticHosting = PUBLIC_HOSTING_MODE === 'static';
 	const installCommand = 'bun add svelte-elevenlabs';
-	const version = '0.2.0';
+	const version = '0.3.0';
 	const legalDisclaimer =
 		'This is an independent community project. Not affiliated with or endorsed by Eleven Labs Inc.';
 

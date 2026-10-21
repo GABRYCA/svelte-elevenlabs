@@ -1,6 +1,19 @@
 import { BROWSER } from 'esm-env';
 import { AudioManager, AudioManagerError, parseAudioFormat } from '../audio/audioManager.js';
 import {
+	buildAgentWebSocketUrl,
+	closeMessage,
+	extractErrorMessage,
+	isAbortError,
+	isRecord,
+	normalizeWebSocketUrl,
+	parseServerEvent,
+	resolveConversationTarget,
+	roundLevel,
+	safeOrigin,
+	type ConversationTarget
+} from '../protocol/helpers.js';
+import {
 	ConversationError,
 	type AudioFormatId,
 	type ClientEvent,
@@ -17,42 +30,9 @@ import {
 	type TranscriptMessage
 } from '../types/index.js';
 
-const DEFAULT_ORIGIN = 'wss://api.elevenlabs.io';
 const DEFAULT_SIGNED_URL_ENDPOINT = '/api/signed-url';
 const HANDSHAKE_TIMEOUT_MS = 15_000;
 const MAX_LATENCY_HISTORY = 12;
-const AGENT_ID_PATTERN = /^(agent|seng)_[A-Za-z0-9]+$/;
-
-/** A validated start target before any network or microphone work begins. */
-interface ConversationTarget {
-	value: string;
-	signed: boolean;
-	websocket: boolean;
-}
-
-const KNOWN_SERVER_EVENTS = new Set<ServerEvent['type']>([
-	'conversation_initiation_metadata',
-	'audio',
-	'user_transcript',
-	'agent_response',
-	'agent_response_correction',
-	'agent_chat_response_part',
-	'agent_response_complete',
-	'agent_response_metadata',
-	'interruption',
-	'vad_score',
-	'ping',
-	'client_error',
-	'queue_status',
-	'client_tool_call',
-	'agent_tool_request',
-	'agent_tool_response',
-	'agent_tool_response_full_payload',
-	'mcp_tool_call',
-	'mcp_connection_status',
-	'guardrail_triggered',
-	'context_usage'
-]);
 
 /**
  * Reactive Svelte 5 controller for one ElevenLabs Conversational AI session.
@@ -169,18 +149,18 @@ export class ConversationController {
 		agentIdOrSignedUrl?: string,
 		startOptions: StartConversationOptions = {}
 	): Promise<void> {
+		if (this.destroyed) {
+			this.publishError(
+				new ConversationError('not-supported', 'This conversation controller has been destroyed.')
+			);
+			return;
+		}
 		if (!BROWSER) {
 			this.publishError(
 				new ConversationError(
 					'not-supported',
 					'Voice conversations can only be started in a browser.'
 				)
-			);
-			return;
-		}
-		if (this.destroyed) {
-			this.publishError(
-				new ConversationError('not-supported', 'This conversation controller has been destroyed.')
 			);
 			return;
 		}
@@ -444,43 +424,18 @@ export class ConversationController {
 		target: string | undefined,
 		startOptions: StartConversationOptions
 	): ConversationTarget {
-		const chosen = target?.trim() || this.options.signedUrl?.trim() || this.options.agentId?.trim();
-		if (!chosen) {
-			throw new ConversationError(
-				'invalid-target',
-				'Provide an ElevenLabs agent ID or a signed WebSocket URL before starting a conversation.'
-			);
-		}
-
-		if (/^(wss?|https?):\/\//i.test(chosen)) {
-			return {
-				value: normalizeWebSocketUrl(chosen),
-				signed: false,
-				websocket: true
-			};
-		}
-
-		if (!AGENT_ID_PATTERN.test(chosen)) {
-			throw new ConversationError(
-				'invalid-target',
-				'That does not look like an ElevenLabs agent ID. Agent IDs start with "agent_" (or "seng_" for speech engines).'
-			);
-		}
-
-		return {
-			value: chosen,
-			signed: startOptions.signed === true,
-			websocket: false
-		};
+		return resolveConversationTarget(target, {
+			agentId: this.options.agentId,
+			signedUrl: this.options.signedUrl,
+			signed: startOptions.signed === true
+		});
 	}
 
 	/** Turn a validated target into a WebSocket URL. */
 	private async resolveUrl(target: ConversationTarget): Promise<string> {
 		if (target.websocket) return target.value;
 		if (target.signed) return this.fetchSignedUrl(target.value);
-
-		const origin = (this.options.origin ?? DEFAULT_ORIGIN).replace(/\/+$/, '');
-		return `${origin}/v1/convai/conversation?agent_id=${encodeURIComponent(target.value)}`;
+		return buildAgentWebSocketUrl(target.value, this.options.origin);
 	}
 
 	/** Exchange an agent id for a signed URL through the app server. */
@@ -1304,128 +1259,4 @@ export function useConversation(options: ConversationOptions = {}): Conversation
  */
 export function createConversation(options: ConversationOptions = {}): ConversationController {
 	return new ConversationController(options);
-}
-
-/* -------------------------------------------------------------------------- */
-/*                                  Helpers                                   */
-/* -------------------------------------------------------------------------- */
-
-/** Parse a socket message without trusting its shape. */
-function parseServerEvent(data: unknown): ServerEvent | null {
-	if (typeof data !== 'string') return null;
-
-	let parsed: unknown;
-	try {
-		parsed = JSON.parse(data);
-	} catch {
-		return null;
-	}
-
-	if (
-		!isRecord(parsed) ||
-		typeof parsed.type !== 'string' ||
-		!KNOWN_SERVER_EVENTS.has(parsed.type as ServerEvent['type'])
-	) {
-		return null;
-	}
-
-	return parsed as unknown as ServerEvent;
-}
-
-/** Runtime object guard. */
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-/** Extract a human message from an API error body without assuming its shape. */
-function extractErrorMessage(body: unknown): string | null {
-	if (!isRecord(body)) return null;
-	const error = body.error;
-	if (isRecord(error) && typeof error.message === 'string') return error.message;
-	if (typeof error === 'string') return error;
-	if (typeof body.message === 'string') return body.message;
-	if (typeof body.detail === 'string') return body.detail;
-	return null;
-}
-
-/** Normalize http(s) URLs to ws(s) and reject other schemes. */
-function normalizeWebSocketUrl(value: string): string {
-	let url: URL;
-	try {
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- Pure URL validation.
-		url = new URL(value);
-	} catch (cause) {
-		throw new ConversationError(
-			'invalid-target',
-			'That signed URL is not a valid URL. Request a fresh one from the server route.',
-			cause
-		);
-	}
-
-	if (url.protocol === 'https:') url.protocol = 'wss:';
-	if (url.protocol === 'http:') url.protocol = 'ws:';
-	if (url.protocol !== 'wss:' && url.protocol !== 'ws:') {
-		throw new ConversationError(
-			'invalid-target',
-			'The conversation URL must use wss:// (or ws:// for local development).'
-		);
-	}
-	return url.toString();
-}
-
-/** Redact query strings from logs so signed tokens never reach the console. */
-function safeOrigin(value: string): string {
-	try {
-		const url = new URL(value);
-		return `${url.protocol}//${url.host}${url.pathname}`;
-	} catch {
-		return 'invalid-url';
-	}
-}
-
-/** Convert a close code and reason into an actionable message. */
-function closeMessage(code: number, reason: string): string {
-	const detail = reason.trim();
-	if (detail) {
-		if (code === 1000) return `The conversation ended: ${detail}`;
-		return `${detail} (WebSocket code ${code})`;
-	}
-
-	switch (code) {
-		case 1000:
-			return 'The conversation ended.';
-		case 1001:
-			return 'The agent went offline. Try starting a new conversation.';
-		case 1006:
-			return 'Lost the connection to ElevenLabs. Check your network and try again.';
-		case 1008:
-			return 'The agent rejected this session. Check the agent ID and its authentication settings.';
-		case 1011:
-			return 'The agent encountered an internal error. Try again.';
-		case 1012:
-			return 'The agent restarted. Start a new conversation to reconnect.';
-		case 1013:
-			return 'The agent is busy. Try again in a moment.';
-		case 4000:
-		case 4001:
-		case 4002:
-			return `The agent could not accept the session (code ${code}). Check the agent ID and signed URL configuration.`;
-		default:
-			return `The conversation closed unexpectedly (WebSocket code ${code}). Check the browser console for details.`;
-	}
-}
-
-/** Detect an AbortError without depending on DOMException instanceof quirks. */
-function isAbortError(value: unknown): boolean {
-	return (
-		typeof value === 'object' &&
-		value !== null &&
-		'name' in value &&
-		(value as { name: unknown }).name === 'AbortError'
-	);
-}
-
-/** Round levels to three decimals to reduce needless reactive updates. */
-function roundLevel(value: number): number {
-	return Math.round(Math.max(0, Math.min(1, value)) * 1000) / 1000;
 }

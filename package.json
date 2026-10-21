@@ -1,6 +1,6 @@
 {
 	"name": "svelte-elevenlabs",
-	"version": "0.2.0",
+	"version": "0.3.0",
 	"description": "A community-driven Svelte 5 library and starter kit for ElevenLabs Conversational AI and low-latency audio streaming.",
 	"license": "MIT",
 	"author": "GABRYCA (https://github.com/GABRYCA)",
@@ -54,6 +54,7 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test": "vitest run",
 		"test:watch": "vitest",
+		"test:live": "vitest run --config vitest.live.config.ts",
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write ."
 	},

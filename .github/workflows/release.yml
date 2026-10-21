@@ -1,0 +1,204 @@
+name: Release and deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Least privilege by default. Each job opts into the extra scopes it needs.
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  meta:
+    name: Read the package version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.package.outputs.version }}
+      tag: ${{ steps.package.outputs.tag }}
+      publish: ${{ steps.package.outputs.publish }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Detect a new version
+        id: package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(node -p "JSON.parse(require('fs').readFileSync('package.json', 'utf8')).version")"
+          tag="v$version"
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null && \
+            gh release view "$tag" >/dev/null 2>&1; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "Version $version is already tagged and released."
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "Version $version needs a tag or a GitHub release."
+          fi
+
+  verify:
+    name: Check, test, and lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Type-check Svelte and TypeScript
+        run: bun run check
+
+      - name: Run the offline test suite
+        run: bun run test
+
+      - name: Check formatting and lint
+        run: bun run lint
+
+  package:
+    name: Build the package artifact
+    runs-on: ubuntu-latest
+    needs: [meta, verify]
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build the library
+        run: bun run prepack
+
+      - name: Pack the publishable tarball
+        run: |
+          mkdir -p artifacts
+          bun pm pack --ignore-scripts --destination artifacts --quiet
+
+      - name: Upload the package artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: svelte-elevenlabs-${{ needs.meta.outputs.version }}
+          path: artifacts/*.tgz
+          if-no-files-found: error
+          retention-days: 14
+
+  pages:
+    name: Build and deploy the static demo
+    runs-on: ubuntu-latest
+    needs: verify
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v6
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build the static demo
+        run: bun run build:pages
+        env:
+          # Project sites use /<repository>. Set the repository variable to
+          # override the value for custom domains or user sites.
+          PAGES_BASE_PATH: ${{ vars.PAGES_BASE_PATH || steps.pages.outputs.base_path }}
+          PUBLIC_HOSTING_MODE: static
+          # Optional and safe to expose. Leave the variable empty to require
+          # visitors to paste their own public agent id.
+          PUBLIC_ELEVENLABS_AGENT_ID: ${{ vars.PUBLIC_ELEVENLABS_AGENT_ID }}
+
+      - name: Upload the Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: build
+          include-hidden-files: true
+
+      - name: Upload the downloadable demo artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: svelte-elevenlabs-static-demo
+          path: build
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
+
+  release:
+    name: Tag and publish the GitHub release
+    runs-on: ubuntu-latest
+    needs: [meta, package]
+    if: needs.meta.outputs.publish == 'true' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Create and push the version tag
+        env:
+          TAG: ${{ needs.meta.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "Tag $TAG already exists. Keeping it."
+          else
+            git tag -a "$TAG" -m "svelte-elevenlabs $TAG"
+            git push origin "$TAG"
+          fi
+
+      - name: Download the package artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: svelte-elevenlabs-${{ needs.meta.outputs.version }}
+          path: release-assets
+
+      - name: Publish the GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.meta.outputs.tag }}
+          name: svelte-elevenlabs ${{ needs.meta.outputs.version }}
+          generate_release_notes: true
+          make_latest: true
+          fail_on_unmatched_files: true
+          files: release-assets/*.tgz

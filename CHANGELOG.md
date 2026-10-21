@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-10-21
+
+### Added
+
+- Automatic version tagging on pushes to `main` through `.github/workflows/release.yml`.
+- GitHub release publishing with generated notes and the packed npm tarball as a release asset.
+- GitHub Pages deployment from the release workflow, plus downloadable package and static demo artifacts.
+- Pull request CI through `.github/workflows/ci.yml` with type checks, tests, lint, the Node build, and the static build.
+- Opt-in live ElevenLabs tests for the agent REST endpoint, signed URL endpoint, and WebSocket initiation metadata.
+- Separate `vitest.live.config.ts` and `bun run test:live`, so quota-consuming tests never run in CI or in the default suite.
+- Expanded offline coverage for audio formats, resampling, PCM16 clamping, µ-law decoding, `AudioManager` guards, protocol parsing, target validation, URL normalization, close messages, error classes, the signed URL route, and controller state.
+- `include-hidden-files` for Pages uploads so `.nojekyll` reaches the deployed artifact.
+
+### Changed
+
+- Extracted protocol parsing, target validation, URL normalization, and error formatting into `src/lib/protocol/helpers.ts` for direct unit testing.
+- `startConversation` now reports a destroyed controller before the browser support check.
+- Bumped the package version from `0.2.0` to `0.3.0`.
+- Updated the README with the release flow, artifact names, CI behavior, and live test instructions.
+- Updated the repository guidance for the new workflows and test commands.
 
 ## [0.2.0] - 2026-10-21
 
