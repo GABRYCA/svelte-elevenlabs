@@ -6,6 +6,7 @@ import {
 	decodePcm16,
 	decodeUlaw,
 	encodePcm16Base64,
+	listAudioDevices,
 	parseAudioFormat,
 	resampleLinear
 } from '../src/lib/audio/audioManager.js';
@@ -227,6 +228,10 @@ describe('AudioManager without a browser', () => {
 		expect(input.every((value) => value === 0)).toBe(true);
 		expect(output.length).toBe(8);
 		expect(output.every((value) => value === 0)).toBe(true);
+	});
+
+	it('reports no audio devices without browser media APIs', async () => {
+		await expect(listAudioDevices()).resolves.toEqual([]);
 	});
 
 	it('fails preparation with a typed unsupported error', async () => {

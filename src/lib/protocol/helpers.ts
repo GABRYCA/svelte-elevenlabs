@@ -1,9 +1,48 @@
-import { ConversationError, type ServerEvent } from '../types/index.js';
+import { ConversationError, type ServerEvent, type ServerLocation } from '../types/index.js';
 
 const AGENT_ID_PATTERN = /^(agent|seng)_[A-Za-z0-9]+$/;
 
 /** Default WebSocket origin used for public agent ids. */
 export const ELEVENLABS_WEBSOCKET_ORIGIN = 'wss://api.elevenlabs.io';
+
+/** WebSocket origins for each supported data residency location. */
+export const SERVER_LOCATION_ORIGINS: Record<ServerLocation, string> = {
+	us: 'wss://api.elevenlabs.io',
+	'eu-residency': 'wss://api.eu.residency.elevenlabs.io',
+	'in-residency': 'wss://api.in.residency.elevenlabs.io',
+	global: 'wss://api.elevenlabs.io'
+};
+
+/** Every supported data residency value, useful for selects and validation. */
+export const SERVER_LOCATIONS: readonly ServerLocation[] = [
+	'us',
+	'eu-residency',
+	'in-residency',
+	'global'
+];
+
+/**
+ * Check whether a value is a supported data residency location.
+ *
+ * @param value - Candidate value from app configuration.
+ * @returns `true` when the value is a known location.
+ */
+export function isServerLocation(value: unknown): value is ServerLocation {
+	return typeof value === 'string' && (SERVER_LOCATIONS as readonly string[]).includes(value);
+}
+
+/**
+ * Return the WebSocket origin for a data residency location.
+ *
+ * Invalid values fall back to the US origin so a typo cannot prevent a session
+ * from starting.
+ *
+ * @param location - Requested location.
+ * @returns The matching WebSocket origin.
+ */
+export function getServerLocationOrigin(location: ServerLocation | undefined): string {
+	return SERVER_LOCATION_ORIGINS[location ?? 'us'] ?? ELEVENLABS_WEBSOCKET_ORIGIN;
+}
 
 /**
  * A validated conversation start target.
@@ -44,6 +83,7 @@ const KNOWN_SERVER_EVENTS = new Set<ServerEvent['type']>([
 	'vad_score',
 	'ping',
 	'client_error',
+	'error',
 	'queue_status',
 	'client_tool_call',
 	'agent_tool_request',

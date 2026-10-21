@@ -4,13 +4,16 @@ import {
 	closeMessage,
 	ELEVENLABS_WEBSOCKET_ORIGIN,
 	extractErrorMessage,
+	getServerLocationOrigin,
 	isAbortError,
 	isRecord,
+	isServerLocation,
 	normalizeWebSocketUrl,
 	parseServerEvent,
 	resolveConversationTarget,
 	roundLevel,
-	safeOrigin
+	safeOrigin,
+	SERVER_LOCATIONS
 } from '../src/lib/protocol/helpers.js';
 import { ConversationError } from '../src/lib/types/index.js';
 
@@ -131,6 +134,30 @@ describe('buildAgentWebSocketUrl', () => {
 	});
 });
 
+describe('server locations', () => {
+	it('maps every supported location to a WebSocket origin', () => {
+		expect(getServerLocationOrigin('us')).toBe(ELEVENLABS_WEBSOCKET_ORIGIN);
+		expect(getServerLocationOrigin('global')).toBe(ELEVENLABS_WEBSOCKET_ORIGIN);
+		expect(getServerLocationOrigin('eu-residency')).toBe('wss://api.eu.residency.elevenlabs.io');
+		expect(getServerLocationOrigin('in-residency')).toBe('wss://api.in.residency.elevenlabs.io');
+		expect(getServerLocationOrigin(undefined)).toBe(ELEVENLABS_WEBSOCKET_ORIGIN);
+	});
+
+	it('recognizes only documented residency values', () => {
+		for (const location of SERVER_LOCATIONS) {
+			expect(isServerLocation(location)).toBe(true);
+		}
+
+		expect(isServerLocation('us-east')).toBe(false);
+		expect(isServerLocation('')).toBe(false);
+		expect(isServerLocation(null)).toBe(false);
+	});
+
+	it('falls back to the US origin for an unknown runtime value', () => {
+		expect(getServerLocationOrigin('us-east' as never)).toBe(ELEVENLABS_WEBSOCKET_ORIGIN);
+	});
+});
+
 describe('parseServerEvent', () => {
 	it('parses known events and keeps their payload', () => {
 		const event = parseServerEvent(
@@ -168,6 +195,28 @@ describe('parseServerEvent', () => {
 				})
 			)?.type
 		).toBe('client_tool_call');
+	});
+
+	it('parses current protocol error events', () => {
+		const event = parseServerEvent(
+			JSON.stringify({
+				type: 'error',
+				error_event: {
+					code: 1002,
+					error_type: 'max_duration_exceeded',
+					message: 'Maximum call duration reached.'
+				}
+			})
+		);
+
+		expect(event).toEqual({
+			type: 'error',
+			error_event: {
+				code: 1002,
+				error_type: 'max_duration_exceeded',
+				message: 'Maximum call duration reached.'
+			}
+		});
 	});
 
 	it('ignores unknown, malformed, and non-string messages', () => {

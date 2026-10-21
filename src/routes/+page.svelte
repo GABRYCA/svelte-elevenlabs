@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { PUBLIC_ELEVENLABS_AGENT_ID, PUBLIC_HOSTING_MODE } from '$app/env/public';
 	import { onDestroy, onMount } from 'svelte';
-	import { AudioManager, AudioVisualizer, useConversation } from '#lib';
+	import { AudioManager, AudioVisualizer, useConversation, type AudioDeviceInfo } from '#lib';
 
 	const configuredAgentId = (PUBLIC_ELEVENLABS_AGENT_ID ?? '').trim();
 	const staticHosting = PUBLIC_HOSTING_MODE === 'static';
 	const installCommand = 'bun add svelte-elevenlabs';
-	const version = '0.3.0';
+	const version = '0.4.0';
 	const legalDisclaimer =
 		'This is an independent community project. Not affiliated with or endorsed by Eleven Labs Inc.';
 
@@ -24,9 +24,19 @@
 	let pinnedToBottom = true;
 	let copyState = $state<'idle' | 'copied' | 'failed'>('idle');
 	let copyTimer: ReturnType<typeof setTimeout> | null = null;
+	let textOnly = $state(false);
+	let textDraft = $state('');
+	let devices = $state<AudioDeviceInfo[]>([]);
+	let devicesLoaded = $state(false);
+	let deviceError = $state<string | null>(null);
 
 	const active = $derived(conversation.status !== 'disconnected');
 	const connected = $derived(conversation.status === 'connected');
+	const textMode = $derived(
+		conversation.status !== 'disconnected' ? conversation.isTextOnly : textOnly
+	);
+	const inputDevices = $derived(devices.filter((device) => device.kind === 'audioinput'));
+	const outputDevices = $derived(devices.filter((device) => device.kind === 'audiooutput'));
 	const statusText = $derived.by(() => {
 		if (conversation.queueStatus === 'waiting') return 'Queued';
 		if (conversation.status === 'connecting') return 'Dialing';
@@ -51,22 +61,34 @@
 	);
 	const primaryHint = $derived(
 		conversation.status === 'connected'
-			? 'Live · speak freely'
+			? textMode
+				? 'Text channel · type below'
+				: 'Live · speak freely'
 			: conversation.status === 'connecting'
-				? 'Negotiating formats'
-				: 'Mic permission on press'
+				? textMode
+					? 'Negotiating text metadata'
+					: 'Negotiating formats'
+				: textMode
+					? 'Text only · no microphone'
+					: 'Mic permission on press'
 	);
 	const helperText = $derived.by(() => {
-		if (audioSupport === 'unsupported') {
-			return 'This browser cannot open the Web Audio + microphone APIs required for a call.';
+		if (!textOnly && audioSupport === 'unsupported') {
+			return 'This browser cannot open the Web Audio + microphone APIs required for a voice call. Switch on text only mode to continue.';
 		}
 		if (conversation.status === 'connected') {
+			if (textMode) return 'Text only session. Type a message below; no microphone is open.';
 			return conversation.isMuted
 				? 'Your microphone is muted. The agent can still speak; unmute to reply.'
 				: 'Your microphone is live. Start speaking at any time. Barge-in flushes agent audio.';
 		}
 		if (conversation.status === 'connecting') {
-			return 'Hold the line. Microphone, signed URL, and WebSocket metadata are being prepared.';
+			return textMode
+				? 'Hold the line. The text channel and conversation metadata are being prepared.'
+				: 'Hold the line. Microphone, signed URL, and WebSocket metadata are being prepared.';
+		}
+		if (textOnly) {
+			return 'Text only mode skips microphone permission and Web Audio setup. Start, then type your first turn.';
 		}
 		if (staticHosting) {
 			return 'This static demo uses public agent ids or a signed URL you already have. The server exchange runs in the local build.';
@@ -94,7 +116,8 @@
 		});
 	});
 	const startDisabled = $derived(
-		conversation.status === 'disconnected' && (!agentId.trim() || audioSupport === 'unsupported')
+		conversation.status === 'disconnected' &&
+			(!agentId.trim() || (!textOnly && audioSupport === 'unsupported'))
 	);
 
 	onMount(() => {
@@ -140,7 +163,8 @@
 
 		pinnedToBottom = true;
 		void conversation.startConversation(target, {
-			signed: !staticHosting && authMode === 'signed'
+			signed: !staticHosting && authMode === 'signed',
+			textOnly
 		});
 	}
 
@@ -153,6 +177,46 @@
 	function clearLog(): void {
 		conversation.clearTranscripts();
 		pinnedToBottom = true;
+	}
+
+	function handleSendText(event: SubmitEvent): void {
+		event.preventDefault();
+		const value = textDraft.trim();
+		if (!value) return;
+		if (conversation.sendUserMessage(value)) textDraft = '';
+	}
+
+	async function refreshDevices(): Promise<void> {
+		try {
+			devices = await conversation.listAudioDevices();
+			devicesLoaded = true;
+			deviceError = null;
+		} catch (cause) {
+			deviceError =
+				cause instanceof Error ? cause.message : 'Could not read the audio device list.';
+		}
+	}
+
+	async function handleInputDevice(event: Event): Promise<void> {
+		const select = event.currentTarget as HTMLSelectElement;
+		const changed = await conversation.changeInputDevice(select.value || undefined);
+		if (changed) {
+			deviceError = null;
+			return;
+		}
+		deviceError = conversation.error ?? 'Could not switch the input device.';
+		select.value = conversation.inputDeviceId ?? '';
+	}
+
+	async function handleOutputDevice(event: Event): Promise<void> {
+		const select = event.currentTarget as HTMLSelectElement;
+		const changed = await conversation.changeOutputDevice(select.value || undefined);
+		if (changed) {
+			deviceError = null;
+			return;
+		}
+		deviceError = conversation.error ?? 'Could not switch the output device.';
+		select.value = conversation.outputDeviceId ?? '';
 	}
 
 	async function copyInstall(): Promise<void> {
@@ -246,7 +310,7 @@
 			<div class="hero__copy">
 				<p class="hero__kicker">
 					<span class="hero__kicker-line" aria-hidden="true"></span>
-					Voice I/O for Svelte 5
+					Voice and text I/O for Svelte 5
 				</p>
 
 				<h1 id="hero-title">
@@ -256,8 +320,8 @@
 
 				<p class="hero__lede">
 					A production-minded SvelteKit library for ElevenLabs Conversational AI. One rune opens a
-					low-latency audio line, keeps state reactive, and closes every resource when the component
-					leaves the room.
+					low-latency audio line or a text-only channel, keeps state reactive, and closes every
+					resource when the component leaves the room.
 				</p>
 
 				<div class="hero__actions">
@@ -492,6 +556,15 @@
 								</div>
 							</fieldset>
 
+							<label class="mode-toggle" class:is-disabled={active}>
+								<input type="checkbox" bind:checked={textOnly} disabled={active} />
+								<span class="mode-toggle__box" aria-hidden="true"></span>
+								<span>
+									<strong>Text only session</strong>
+									<small>no microphone or audio context</small>
+								</span>
+							</label>
+
 							<button
 								type="submit"
 								class="connect"
@@ -544,7 +617,7 @@
 							<button
 								type="button"
 								class="utility"
-								disabled={!connected}
+								disabled={!connected || textMode}
 								aria-pressed={conversation.isMuted}
 								onclick={() => conversation.toggleMute()}
 							>
@@ -570,6 +643,67 @@
 								<span>Clear log</span>
 							</button>
 						</div>
+
+						{#if !textMode}
+							<div class="audio-utility">
+								<label class="volume-control">
+									<span>
+										<span>Playback</span>
+										<strong>{Math.round(conversation.outputGain * 100)}%</strong>
+									</span>
+									<input
+										type="range"
+										min="0"
+										max="1"
+										step="0.05"
+										value={conversation.outputGain}
+										oninput={(event) => conversation.setVolume(Number(event.currentTarget.value))}
+									/>
+								</label>
+
+								<details class="device-drawer">
+									<summary onclick={() => void refreshDevices()}>Audio devices</summary>
+									<div class="device-grid">
+										<label>
+											<span>Microphone</span>
+											<select
+												value={conversation.inputDeviceId ?? ''}
+												onchange={(event) => void handleInputDevice(event)}
+												disabled={!connected}
+											>
+												<option value="">System default</option>
+												{#each inputDevices as device (device.deviceId)}
+													<option value={device.deviceId}>{device.label}</option>
+												{/each}
+											</select>
+										</label>
+										<label>
+											<span>Speaker</span>
+											<select
+												value={conversation.outputDeviceId ?? ''}
+												onchange={(event) => void handleOutputDevice(event)}
+												disabled={!connected}
+											>
+												<option value="">System default</option>
+												{#each outputDevices as device (device.deviceId)}
+													<option value={device.deviceId}>{device.label}</option>
+												{/each}
+											</select>
+										</label>
+									</div>
+									{#if !devicesLoaded}
+										<p class="device-note">
+											Open this after granting microphone access to see device labels.
+										</p>
+									{:else if inputDevices.length === 0 && outputDevices.length === 0}
+										<p class="device-note">No audio devices were reported by this browser.</p>
+									{/if}
+									{#if deviceError}
+										<p class="device-error" role="alert">{deviceError}</p>
+									{/if}
+								</details>
+							</div>
+						{/if}
 
 						<div class="latency">
 							<div class="latency__head">
@@ -623,7 +757,9 @@
 									<p>
 										{active
 											? 'The line is open. The first turn will print here.'
-											: 'The line is quiet. Press start, grant the microphone, and talk.'}
+											: textMode
+												? 'The line is quiet. Start a text only session, then type your first turn.'
+												: 'The line is quiet. Press start, grant the microphone, and talk.'}
 									</p>
 									<p class="printer__small">
 										Agent text may stream in word by word. Corrections replace the same entry.
@@ -647,11 +783,47 @@
 							{/each}
 						{/if}
 					</div>
+
+					{#if connected && conversation.canSendFeedback && conversation.message?.role === 'agent'}
+						<div class="printer__feedback" aria-label="Response feedback">
+							<span>Was this answer useful?</span>
+							<button type="button" onclick={() => conversation.sendFeedback(true)}>
+								Helpful
+							</button>
+							<button type="button" onclick={() => conversation.sendFeedback(false)}>
+								Not helpful
+							</button>
+						</div>
+					{/if}
 				</div>
 
+				<form class="composer" onsubmit={handleSendText}>
+					<label class="composer__field">
+						<span class="composer__label">
+							<span>Type a message</span>
+							<span>{textMode ? 'text only turn' : 'same socket as voice'}</span>
+						</span>
+						<span class="composer__input">
+							<span aria-hidden="true">›</span>
+							<input
+								bind:value={textDraft}
+								type="text"
+								placeholder={textMode ? 'Ask the agent anything' : 'Type instead of speaking'}
+								autocomplete="off"
+								disabled={!connected}
+							/>
+						</span>
+					</label>
+					<button type="submit" class="composer__send" disabled={!connected || !textDraft.trim()}>
+						Send
+					</button>
+				</form>
+
 				<div class="console__footer">
-					<span>Web Audio / AudioWorklet</span>
-					<span class="console__footer-signal" data-on={connected}>PCM16 / STREAM</span>
+					<span>{textMode ? 'WebSocket / text channel' : 'Web Audio / AudioWorklet'}</span>
+					<span class="console__footer-signal" data-on={connected}
+						>{textMode ? 'TYPED / STREAM' : 'PCM16 / STREAM'}</span
+					>
 					<span class="console__footer-spacer"></span>
 					<span>SEL-01</span>
 					<span class="console__footer-dim">No client key</span>
@@ -918,8 +1090,9 @@ bun run dev</code
 				<p class="section-head__tag"><span>04</span> API map</p>
 				<h2 id="api-title">Small surface.<br />Deep control.</h2>
 				<p class="section-head__copy">
-					The core rune exposes the six reactive values and three lifecycle methods the interface
-					needs. Everything else is an optional extension.
+					The core rune exposes the reactive values and lifecycle methods the interface needs,
+					including text-only sessions, client tools, feedback, and device control. Everything else
+					is an optional extension.
 				</p>
 			</header>
 
@@ -941,6 +1114,10 @@ bun run dev</code
 						<div>
 							<dt><code>isListening</code></dt>
 							<dd>Microphone is live and the agent can hear it.</dd>
+						</div>
+						<div>
+							<dt><code>isTextOnly</code></dt>
+							<dd>The current session uses the text channel only.</dd>
 						</div>
 						<div>
 							<dt><code>volume</code></dt>
@@ -967,10 +1144,11 @@ bun run dev</code
 					</div>
 					<div class="method-list">
 						<div class="method">
-							<code>startConversation(target?, &#123; signed? &#125;)</code>
+							<code>startConversation(target?, &#123; signed?, textOnly? &#125;)</code>
 							<p>
-								Opens the mic and socket. Accepts a public agent id, signed
-								<code>wss://</code> URL, or configured default.
+								Opens the mic or text channel and the socket. Accepts a public agent id, signed
+								<code>wss://</code> URL, or configured default. <code>textOnly</code> overrides the controller
+								default for this session.
 							</p>
 						</div>
 						<div class="method">
@@ -988,6 +1166,18 @@ bun run dev</code
 						<div class="method">
 							<code>sendUserMessage(text)</code>
 							<p>Adds a typed user turn over the same WebSocket.</p>
+						</div>
+						<div class="method">
+							<code>sendFeedback(like, eventId?)</code>
+							<p>Submits positive or negative feedback for an agent response.</p>
+						</div>
+						<div class="method">
+							<code>changeInputDevice(id?)</code>
+							<p>Switches the microphone while a voice session is active.</p>
+						</div>
+						<div class="method">
+							<code>changeOutputDevice(id?)</code>
+							<p>Routes agent playback to another output device.</p>
 						</div>
 					</div>
 				</div>
@@ -2084,6 +2274,74 @@ bun run dev</code
 		cursor: not-allowed;
 	}
 
+	.mode-toggle {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		align-items: center;
+		gap: 0.55rem;
+		padding: 0.55rem 0.65rem;
+		border: 1px solid var(--chassis-line);
+		cursor: pointer;
+	}
+
+	.mode-toggle.is-disabled {
+		cursor: not-allowed;
+		opacity: 0.62;
+	}
+
+	.mode-toggle input {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	.mode-toggle__box {
+		display: grid;
+		place-items: center;
+		width: 1rem;
+		height: 1rem;
+		border: 1px solid var(--chalk-muted);
+	}
+
+	.mode-toggle input:checked + .mode-toggle__box {
+		border-color: var(--agent);
+	}
+
+	.mode-toggle input:checked + .mode-toggle__box::after {
+		width: 0.44rem;
+		height: 0.44rem;
+		background: var(--agent);
+		content: '';
+	}
+
+	.mode-toggle:focus-within {
+		border-color: var(--agent);
+		outline: 2px solid var(--agent);
+		outline-offset: 2px;
+	}
+
+	.mode-toggle strong,
+	.mode-toggle small {
+		display: block;
+		font-family: var(--font-mono);
+		line-height: 1.4;
+	}
+
+	.mode-toggle strong {
+		color: var(--chalk);
+		font-size: 0.54rem;
+		font-weight: 520;
+		letter-spacing: 0.04em;
+	}
+
+	.mode-toggle small {
+		color: var(--chalk-muted);
+		font-size: 0.47rem;
+		font-weight: 400;
+	}
+
 	.connect {
 		display: grid;
 		grid-template-columns: auto 1fr auto;
@@ -2316,6 +2574,93 @@ bun run dev</code
 		stroke: var(--signal);
 	}
 
+	.audio-utility {
+		display: grid;
+		gap: 0.55rem;
+		padding-top: 0.65rem;
+		border-top: 1px solid var(--chassis-line);
+	}
+
+	.volume-control {
+		display: grid;
+		gap: 0.4rem;
+		color: var(--chalk-muted);
+		font-family: var(--font-mono);
+		font-size: 0.49rem;
+		letter-spacing: 0.06em;
+		line-height: 1.4;
+		text-transform: uppercase;
+	}
+
+	.volume-control > span {
+		display: flex;
+		justify-content: space-between;
+		gap: 0.75rem;
+	}
+
+	.volume-control strong {
+		color: var(--chalk);
+		font-weight: 520;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.volume-control input {
+		width: 100%;
+		accent-color: var(--signal);
+	}
+
+	.device-drawer {
+		color: var(--chalk-muted);
+		font-family: var(--font-mono);
+		font-size: 0.49rem;
+		line-height: 1.45;
+	}
+
+	.device-drawer summary {
+		cursor: pointer;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+	}
+
+	.device-grid {
+		display: grid;
+		gap: 0.5rem;
+		margin-top: 0.55rem;
+	}
+
+	.device-grid label {
+		display: grid;
+		gap: 0.25rem;
+	}
+
+	.device-grid select {
+		width: 100%;
+		height: 1.9rem;
+		padding: 0 0.45rem;
+		border: 1px solid var(--chassis-line);
+		border-radius: 0;
+		background: var(--chassis);
+		color: var(--chalk);
+		font-family: var(--font-mono);
+		font-size: 0.55rem;
+	}
+
+	.device-grid select:disabled {
+		opacity: 0.5;
+	}
+
+	.device-note,
+	.device-error {
+		margin: 0.5rem 0 0;
+		font-family: var(--font-mono);
+		font-size: 0.49rem;
+		line-height: 1.55;
+	}
+
+	.device-error {
+		color: #ffb49d;
+	}
+
 	.latency {
 		margin-top: auto;
 		padding-top: 0.65rem;
@@ -2542,6 +2887,144 @@ bun run dev</code
 		background: var(--signal);
 		vertical-align: -0.08em;
 		animation: blink 0.9s steps(1) infinite;
+	}
+
+	.printer__feedback {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.45rem;
+		padding: 0.55rem 1rem;
+		border-top: 1px solid var(--chassis-line);
+		color: var(--chalk-muted);
+		font-family: var(--font-mono);
+		font-size: 0.48rem;
+		letter-spacing: 0.08em;
+		line-height: 1.4;
+		text-transform: uppercase;
+	}
+
+	.printer__feedback span {
+		margin-right: auto;
+	}
+
+	.printer__feedback button {
+		padding: 0.32rem 0.52rem;
+		border: 1px solid var(--chassis-line);
+		border-radius: 0;
+		background: transparent;
+		color: var(--chalk);
+		cursor: pointer;
+		font-family: var(--font-mono);
+		font-size: 0.47rem;
+		letter-spacing: 0.06em;
+		line-height: 1;
+		text-transform: uppercase;
+	}
+
+	.printer__feedback button:hover {
+		border-color: var(--agent);
+		color: var(--agent);
+	}
+
+	.printer__feedback button:focus-visible {
+		outline: 2px solid var(--agent);
+		outline-offset: 2px;
+	}
+
+	.composer {
+		display: flex;
+		align-items: stretch;
+		gap: 0.6rem;
+		padding: 0.7rem 1rem;
+		border-top: 1px solid var(--chassis-line);
+		background: var(--chassis-raised);
+	}
+
+	.composer__field {
+		display: grid;
+		gap: 0.32rem;
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+
+	.composer__label {
+		display: flex;
+		justify-content: space-between;
+		gap: 1rem;
+		color: var(--chalk-muted);
+		font-family: var(--font-mono);
+		font-size: 0.47rem;
+		letter-spacing: 0.08em;
+		line-height: 1.4;
+		text-transform: uppercase;
+	}
+
+	.composer__input {
+		display: flex;
+		align-items: center;
+		gap: 0.45rem;
+		height: 2.35rem;
+		padding: 0 0.6rem;
+		border: 1px solid var(--chassis-line);
+		background: var(--chassis);
+	}
+
+	.composer__input > span {
+		color: var(--signal);
+		font-family: var(--font-mono);
+		font-size: 0.8rem;
+		line-height: 1;
+	}
+
+	.composer__input input {
+		flex: 1;
+		min-width: 0;
+		height: 100%;
+		border: 0;
+		outline: 0;
+		background: transparent;
+		color: var(--chalk);
+		font-family: var(--font-mono);
+		font-size: 0.63rem;
+	}
+
+	.composer__input input::placeholder {
+		color: rgba(241, 234, 219, 0.38);
+	}
+
+	.composer__input:focus-within {
+		border-color: var(--signal);
+	}
+
+	.composer__send {
+		min-width: 5.2rem;
+		border: 1px solid color-mix(in srgb, var(--signal) 74%, black);
+		border-radius: 0;
+		background: var(--signal);
+		color: #17100c;
+		cursor: pointer;
+		font-family: var(--font-mono);
+		font-size: 0.53rem;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		line-height: 1;
+		text-transform: uppercase;
+	}
+
+	.composer__send:hover:not(:disabled) {
+		background: #ff784c;
+	}
+
+	.composer__send:disabled {
+		cursor: not-allowed;
+		background: rgba(241, 234, 219, 0.12);
+		color: rgba(241, 234, 219, 0.38);
+	}
+
+	.composer__send:focus-visible {
+		outline: 2px solid var(--chalk);
+		outline-offset: 2px;
 	}
 
 	.console__footer {
@@ -3830,6 +4313,27 @@ bun run dev</code
 		.printer__entry {
 			grid-template-columns: 4.2rem minmax(0, 1fr);
 			gap: 0.65rem;
+		}
+
+		.printer__feedback {
+			padding-inline: 0.85rem;
+		}
+
+		.printer__feedback span {
+			width: 100%;
+		}
+
+		.composer {
+			flex-direction: column;
+			padding-inline: 0.85rem;
+		}
+
+		.composer__label {
+			gap: 0.5rem;
+		}
+
+		.composer__send {
+			min-height: 2.35rem;
 		}
 
 		.console__footer {

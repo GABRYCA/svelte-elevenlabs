@@ -2,6 +2,7 @@
 	import { untrack } from 'svelte';
 	import AudioVisualizer from './AudioVisualizer.svelte';
 	import { useConversation, type ConversationController } from '../runes/useConversation.svelte.js';
+	import type { AudioDeviceInfo } from '../audio/audioManager.js';
 	import type { ConversationStatus } from '../types/index.js';
 
 	/**
@@ -30,6 +31,14 @@
 		showTranscript?: boolean;
 		/** Show latency, format, and session counters. Defaults to `true`. */
 		showTelemetry?: boolean;
+		/** Run widget owned sessions in text only mode. Ignored with `controller`. */
+		textOnly?: boolean;
+		/** Show the text composer. Defaults to `true`. */
+		showTextInput?: boolean;
+		/** Show response feedback buttons. Defaults to `true`. */
+		showFeedback?: boolean;
+		/** Show playback volume and device controls. Defaults to `true`. */
+		showAudioControls?: boolean;
 		/** Extra class names applied to the root element. */
 		class?: string;
 	}
@@ -44,10 +53,14 @@
 		showVisualizer = true,
 		showTranscript = true,
 		showTelemetry = true,
+		textOnly = false,
+		showTextInput = true,
+		showFeedback = true,
+		showAudioControls = true,
 		class: className = ''
 	}: Props = $props();
 
-	const internal = useConversation();
+	const internal = useConversation({ textOnly: untrack(() => textOnly) });
 	const conversation = $derived(controller ?? internal);
 
 	// Seed the editable field once; later prop changes should not overwrite typing.
@@ -55,10 +68,21 @@
 	let elapsed = $state(0);
 	let transcriptEl = $state<HTMLDivElement | null>(null);
 	let pinnedToBottom = true;
+	let textDraft = $state('');
+	let devices = $state<AudioDeviceInfo[]>([]);
+	let devicesLoaded = $state(false);
+	let deviceError = $state<string | null>(null);
 
+	const isTextOnly = $derived(
+		controller === undefined && conversation.status === 'disconnected'
+			? textOnly
+			: conversation.isTextOnly
+	);
 	const active = $derived(conversation.status !== 'disconnected');
 	const connected = $derived(conversation.status === 'connected');
 	const busy = $derived(conversation.status === 'connecting');
+	const inputDevices = $derived(devices.filter((device) => device.kind === 'audioinput'));
+	const outputDevices = $derived(devices.filter((device) => device.kind === 'audiooutput'));
 	const statusLabel = $derived.by(() => {
 		if (conversation.queueStatus === 'waiting') return 'In queue';
 		if (conversation.status === 'connecting') return 'Patching in';
@@ -85,11 +109,17 @@
 	);
 	const helper = $derived.by(() => {
 		if (conversation.status === 'connected') {
+			if (isTextOnly) return 'Text only session. Type a message; no microphone is open.';
 			if (conversation.isMuted) return 'Microphone muted. The agent can still speak.';
 			return 'Microphone live. Speak naturally. Barge-in flushes agent audio.';
 		}
 		if (conversation.status === 'connecting') {
-			return 'Requesting microphone access and negotiating formats.';
+			return isTextOnly
+				? 'Opening the text channel and negotiating conversation metadata.'
+				: 'Requesting microphone access and negotiating formats.';
+		}
+		if (isTextOnly) {
+			return 'Text only mode skips microphone permission and Web Audio contexts.';
 		}
 		return signed
 			? 'The server exchanges this ID for a short-lived signed URL.'
@@ -129,7 +159,10 @@
 
 		pinnedToBottom = true;
 		const value = target.trim();
-		void conversation.startConversation(value || undefined, { signed });
+		void conversation.startConversation(value || undefined, {
+			signed,
+			...(controller === undefined ? { textOnly } : {})
+		});
 	}
 
 	function handleScroll(): void {
@@ -141,6 +174,46 @@
 	function handleClear(): void {
 		pinnedToBottom = true;
 		conversation.clearTranscripts();
+	}
+
+	function handleSendText(event: SubmitEvent): void {
+		event.preventDefault();
+		const value = textDraft.trim();
+		if (!value) return;
+		if (conversation.sendUserMessage(value)) textDraft = '';
+	}
+
+	async function refreshDevices(): Promise<void> {
+		try {
+			devices = await conversation.listAudioDevices();
+			devicesLoaded = true;
+			deviceError = null;
+		} catch (cause) {
+			deviceError =
+				cause instanceof Error ? cause.message : 'Could not read the audio device list.';
+		}
+	}
+
+	async function handleInputDevice(event: Event): Promise<void> {
+		const select = event.currentTarget as HTMLSelectElement;
+		const changed = await conversation.changeInputDevice(select.value || undefined);
+		if (changed) {
+			deviceError = null;
+			return;
+		}
+		deviceError = conversation.error ?? 'Could not switch the input device.';
+		select.value = conversation.inputDeviceId ?? '';
+	}
+
+	async function handleOutputDevice(event: Event): Promise<void> {
+		const select = event.currentTarget as HTMLSelectElement;
+		const changed = await conversation.changeOutputDevice(select.value || undefined);
+		if (changed) {
+			deviceError = null;
+			return;
+		}
+		deviceError = conversation.error ?? 'Could not switch the output device.';
+		select.value = conversation.outputDeviceId ?? '';
 	}
 
 	function formatClock(totalSeconds: number): string {
@@ -183,7 +256,7 @@
 				<span></span><span></span><span></span><span></span>
 			</span>
 			<div>
-				<p class="se-widget__eyebrow">Voice module / 01</p>
+				<p class="se-widget__eyebrow">{isTextOnly ? 'Text module / 01' : 'Voice module / 01'}</p>
 				<h2>{title}</h2>
 			</div>
 		</div>
@@ -218,7 +291,7 @@
 		</div>
 	{/if}
 
-	{#if showVisualizer}
+	{#if showVisualizer && !isTextOnly}
 		<div class="se-widget__visualizer">
 			<AudioVisualizer {conversation} height={166} />
 		</div>
@@ -237,8 +310,11 @@
 			<div>
 				<dt>In / out</dt>
 				<dd>
-					{formatRate(conversation.inputAudioFormat)} /
-					{formatRate(conversation.outputAudioFormat)}
+					{isTextOnly
+						? 'text / text'
+						: `${formatRate(conversation.inputAudioFormat)} / ${formatRate(
+								conversation.outputAudioFormat
+							)}`}
 				</dd>
 			</div>
 			<div>
@@ -294,6 +370,32 @@
 		</div>
 	{/if}
 
+	{#if showFeedback && connected && conversation.canSendFeedback && conversation.message?.role === 'agent'}
+		<div class="se-widget__feedback" aria-label="Response feedback">
+			<span>Rate this answer</span>
+			<button type="button" onclick={() => conversation.sendFeedback(true)}>Helpful</button>
+			<button type="button" onclick={() => conversation.sendFeedback(false)}>Not helpful</button>
+		</div>
+	{/if}
+
+	{#if showTextInput}
+		<form class="se-widget__text" onsubmit={handleSendText}>
+			<label class="se-widget__text-field">
+				<span>Type a message</span>
+				<input
+					bind:value={textDraft}
+					type="text"
+					placeholder={isTextOnly ? 'Ask the agent anything' : 'Type instead of speaking'}
+					autocomplete="off"
+					disabled={!connected}
+				/>
+			</label>
+			<button type="submit" class="se-widget__send" disabled={!connected || !textDraft.trim()}>
+				Send
+			</button>
+		</form>
+	{/if}
+
 	<form
 		class="se-widget__controls"
 		onsubmit={(event) => {
@@ -326,24 +428,88 @@
 		</button>
 	</form>
 
+	{#if showAudioControls && !isTextOnly}
+		<div class="se-widget__audio">
+			<label class="se-widget__volume">
+				<span>Playback <strong>{Math.round(conversation.outputGain * 100)}%</strong></span>
+				<input
+					type="range"
+					min="0"
+					max="1"
+					step="0.05"
+					value={conversation.outputGain}
+					oninput={(event) => conversation.setVolume(Number(event.currentTarget.value))}
+				/>
+			</label>
+
+			<details class="se-widget__devices">
+				<summary onclick={() => void refreshDevices()}>Audio devices</summary>
+				<div class="se-widget__device-grid">
+					<label>
+						<span>Microphone</span>
+						<select
+							value={conversation.inputDeviceId ?? ''}
+							onchange={(event) => void handleInputDevice(event)}
+							disabled={!connected}
+						>
+							<option value="">System default</option>
+							{#each inputDevices as device (device.deviceId)}
+								<option value={device.deviceId}>{device.label}</option>
+							{/each}
+						</select>
+					</label>
+
+					<label>
+						<span>Speaker</span>
+						<select
+							value={conversation.outputDeviceId ?? ''}
+							onchange={(event) => void handleOutputDevice(event)}
+							disabled={!connected}
+						>
+							<option value="">System default</option>
+							{#each outputDevices as device (device.deviceId)}
+								<option value={device.deviceId}>{device.label}</option>
+							{/each}
+						</select>
+					</label>
+				</div>
+
+				{#if !devicesLoaded}
+					<p class="se-widget__device-note">
+						Open this panel after granting microphone access to see device labels.
+					</p>
+				{:else if inputDevices.length === 0 && outputDevices.length === 0}
+					<p class="se-widget__device-note">No audio devices were reported by this browser.</p>
+				{/if}
+				{#if deviceError}
+					<p class="se-widget__device-error" role="alert">{deviceError}</p>
+				{/if}
+			</details>
+		</div>
+	{/if}
+
 	<div class="se-widget__footer">
 		<p>{helper}</p>
-		<button
-			type="button"
-			class="se-widget__mute"
-			onclick={() => conversation.toggleMute()}
-			disabled={!connected}
-			aria-pressed={conversation.isMuted}
-		>
-			<svg viewBox="0 0 24 24" aria-hidden="true">
-				<path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path>
-				<path d="M5.5 11.5v.5a6.5 6.5 0 0 0 13 0v-.5M12 18.5V22M8.5 22h7"></path>
-				{#if conversation.isMuted}
-					<path d="M4 4 20 20" class="se-widget__slash"></path>
-				{/if}
-			</svg>
-			{conversation.isMuted ? 'Unmute' : 'Mute'}
-		</button>
+		{#if isTextOnly}
+			<span class="se-widget__mode">Text only</span>
+		{:else}
+			<button
+				type="button"
+				class="se-widget__mute"
+				onclick={() => conversation.toggleMute()}
+				disabled={!connected}
+				aria-pressed={conversation.isMuted}
+			>
+				<svg viewBox="0 0 24 24" aria-hidden="true">
+					<path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path>
+					<path d="M5.5 11.5v.5a6.5 6.5 0 0 0 13 0v-.5M12 18.5V22M8.5 22h7"></path>
+					{#if conversation.isMuted}
+						<path d="M4 4 20 20" class="se-widget__slash"></path>
+					{/if}
+				</svg>
+				{conversation.isMuted ? 'Unmute' : 'Mute'}
+			</button>
+		{/if}
 	</div>
 
 	{#if conversation.conversationId}
@@ -720,6 +886,206 @@
 		animation: se-blink 0.9s steps(1) infinite;
 	}
 
+	.se-widget__feedback {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.45rem;
+		padding-top: 0.7rem;
+		border-top: 1px solid var(--se-widget-line);
+		color: var(--se-widget-muted);
+		font-family: var(--se-widget-font-mono);
+		font-size: 0.54rem;
+		letter-spacing: 0.08em;
+		line-height: 1.4;
+		text-transform: uppercase;
+	}
+
+	.se-widget__feedback span {
+		margin-right: auto;
+	}
+
+	.se-widget__feedback button,
+	.se-widget__send {
+		padding: 0.38rem 0.58rem;
+		border: 1px solid var(--se-widget-line);
+		border-radius: 0;
+		background: transparent;
+		color: var(--se-widget-ink);
+		cursor: pointer;
+		font-family: var(--se-widget-font-mono);
+		font-size: 0.52rem;
+		letter-spacing: 0.07em;
+		line-height: 1;
+		text-transform: uppercase;
+	}
+
+	.se-widget__feedback button:hover,
+	.se-widget__send:hover:not(:disabled) {
+		border-color: var(--se-widget-live);
+		color: var(--se-widget-live);
+	}
+
+	.se-widget__text {
+		display: flex;
+		align-items: flex-end;
+		gap: 0.5rem;
+	}
+
+	.se-widget__text-field {
+		display: grid;
+		gap: 0.32rem;
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+
+	.se-widget__text-field span {
+		color: var(--se-widget-muted);
+		font-family: var(--se-widget-font-mono);
+		font-size: 0.52rem;
+		letter-spacing: 0.1em;
+		line-height: 1.3;
+		text-transform: uppercase;
+	}
+
+	.se-widget__text-field input,
+	.se-widget__device-grid select {
+		width: 100%;
+		min-width: 0;
+		height: 2.55rem;
+		padding: 0 0.7rem;
+		border: 1px solid var(--se-widget-line);
+		border-radius: 0;
+		outline: 0;
+		background: var(--se-widget-raised);
+		color: var(--se-widget-ink);
+		font-family: var(--se-widget-font-mono);
+		font-size: 0.7rem;
+		line-height: 1;
+	}
+
+	.se-widget__text-field input::placeholder {
+		color: color-mix(in srgb, var(--se-widget-muted) 72%, transparent);
+	}
+
+	.se-widget__text-field input:focus-visible,
+	.se-widget__device-grid select:focus-visible {
+		border-color: var(--se-widget-accent);
+	}
+
+	.se-widget__text-field input:disabled {
+		opacity: 0.55;
+	}
+
+	.se-widget__send {
+		height: 2.55rem;
+		padding-inline: 0.9rem;
+		border-color: color-mix(in srgb, var(--se-widget-accent) 70%, transparent);
+		background: var(--se-widget-accent);
+		color: #14110d;
+		font-weight: 650;
+	}
+
+	.se-widget__send:disabled {
+		cursor: not-allowed;
+		opacity: 0.4;
+	}
+
+	.se-widget__audio {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		align-items: start;
+		gap: 0.9rem;
+		padding-top: 0.3rem;
+	}
+
+	.se-widget__volume {
+		display: grid;
+		gap: 0.4rem;
+		min-width: 0;
+		color: var(--se-widget-muted);
+		font-family: var(--se-widget-font-mono);
+		font-size: 0.52rem;
+		letter-spacing: 0.08em;
+		line-height: 1.4;
+		text-transform: uppercase;
+	}
+
+	.se-widget__volume span {
+		display: flex;
+		justify-content: space-between;
+		gap: 0.75rem;
+	}
+
+	.se-widget__volume strong {
+		color: var(--se-widget-ink);
+		font-weight: 560;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.se-widget__volume input {
+		width: 100%;
+		accent-color: var(--se-widget-accent);
+	}
+
+	.se-widget__devices {
+		min-width: 10.5rem;
+		color: var(--se-widget-muted);
+		font-family: var(--se-widget-font-mono);
+		font-size: 0.52rem;
+		line-height: 1.4;
+	}
+
+	.se-widget__devices summary {
+		cursor: pointer;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+
+	.se-widget__device-grid {
+		display: grid;
+		gap: 0.55rem;
+		margin-top: 0.55rem;
+	}
+
+	.se-widget__device-grid label {
+		display: grid;
+		gap: 0.28rem;
+	}
+
+	.se-widget__device-grid select {
+		height: 2rem;
+		font-size: 0.58rem;
+	}
+
+	.se-widget__device-grid select:disabled {
+		opacity: 0.55;
+	}
+
+	.se-widget__device-note,
+	.se-widget__device-error {
+		max-width: 16rem;
+		margin: 0.55rem 0 0;
+		font-size: 0.54rem;
+		line-height: 1.5;
+	}
+
+	.se-widget__device-error {
+		color: #ffb49d;
+	}
+
+	.se-widget__mode {
+		flex: 0 0 auto;
+		padding: 0.32rem 0.55rem;
+		border: 1px solid color-mix(in srgb, var(--se-widget-live) 45%, transparent);
+		color: var(--se-widget-live);
+		font-family: var(--se-widget-font-mono);
+		font-size: 0.52rem;
+		letter-spacing: 0.08em;
+		line-height: 1;
+		text-transform: uppercase;
+	}
+
 	.se-widget__controls {
 		display: flex;
 		align-items: flex-end;
@@ -808,7 +1174,10 @@
 	.se-widget__primary:focus-visible,
 	.se-widget__mute:focus-visible,
 	.se-widget__text-button:focus-visible,
-	.se-widget__error-dismiss:focus-visible {
+	.se-widget__error-dismiss:focus-visible,
+	.se-widget__feedback button:focus-visible,
+	.se-widget__send:focus-visible,
+	.se-widget__devices summary:focus-visible {
 		outline: 2px solid var(--se-widget-live);
 		outline-offset: 2px;
 	}
@@ -944,12 +1313,22 @@
 			border-top: 1px solid var(--se-widget-line);
 		}
 
-		.se-widget__controls {
+		.se-widget__controls,
+		.se-widget__text {
 			flex-direction: column;
 			align-items: stretch;
 		}
 
-		.se-widget__primary {
+		.se-widget__primary,
+		.se-widget__send {
+			width: 100%;
+		}
+
+		.se-widget__audio {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.se-widget__feedback span {
 			width: 100%;
 		}
 

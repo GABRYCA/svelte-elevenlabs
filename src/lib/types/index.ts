@@ -84,10 +84,41 @@ export interface TranscriptMessage {
 	timestamp: number;
 	/** ElevenLabs event id, when the server supplied one. */
 	eventId?: number;
+	/** Stable server response id for agent entries. */
+	responseId?: string;
+	/** Files attached to an agent response. */
+	attachments?: AgentResponseAttachment[];
 }
 
 /** Server-side concurrency queue state, when the agent is waiting for a slot. */
 export type QueueStatus = 'waiting' | 'admitted' | 'timed_out';
+
+/**
+ * ElevenLabs data residency location used for public agent ids.
+ *
+ * Signed URLs already point at the correct region, so this option only applies
+ * when the client builds the WebSocket URL itself.
+ */
+export type ServerLocation = 'us' | 'eu-residency' | 'in-residency' | 'global';
+
+/**
+ * Transport requested through {@link ConversationOptions.connectionType}.
+ *
+ * This package implements the WebSocket transport. `webrtc` is part of the
+ * type surface so a misconfigured app fails with a clear message instead of
+ * silently changing transport.
+ */
+export type ConversationConnectionType = 'websocket' | 'webrtc';
+
+/** A file attached to an agent response. */
+export interface AgentResponseAttachment {
+	/** Public or signed file URL. */
+	url: string;
+	/** Display name supplied by the agent. */
+	name: string;
+	/** Optional MIME type. */
+	mime_type?: string | null;
+}
 
 /* -------------------------------------------------------------------------- */
 /*                             Server -> client                               */
@@ -107,6 +138,8 @@ export interface ConversationInitiationMetadata {
 	agent_output_audio_format: AudioFormatId;
 	/** Format the server expects for microphone input. */
 	user_input_audio_format: AudioFormatId;
+	/** Token used to resume a persistent session, when the agent enables one. */
+	persistent_session_token?: string;
 }
 
 /** Negotiated formats for a newly opened conversation. */
@@ -155,7 +188,7 @@ export interface AgentResponseServerEvent extends BaseServerEvent {
 		response_id?: string;
 		response_type?: 'text' | 'voice';
 		in_response_to_ids?: string[];
-		attachments?: Array<{ url: string; name: string; mime_type?: string }>;
+		attachments?: AgentResponseAttachment[];
 	};
 }
 
@@ -177,7 +210,7 @@ export interface AgentChatResponsePartServerEvent extends BaseServerEvent {
 		type: 'start' | 'delta' | 'stop';
 		text: string;
 		event_id: number;
-		response_id: string;
+		response_id?: string;
 	};
 }
 
@@ -225,14 +258,34 @@ export interface PingServerEvent extends BaseServerEvent {
 	};
 }
 
+/** Payload for an error reported by the agent. */
+export interface ServerErrorPayload {
+	/** WebSocket error or close code. */
+	code: number;
+	/** Legacy error name used by older protocol versions. */
+	error_name?: string;
+	/** Current protocol error category. */
+	error_type?: string;
+	/** Human-readable summary. */
+	message?: string;
+	/** Alternative human-readable reason. */
+	reason?: string;
+	/** Developer-facing diagnostic detail. */
+	debug_message?: string;
+	/** Structured error details, when the server supplies them. */
+	details?: Record<string, unknown>;
+}
+
 /** A recoverable or fatal error reported by the agent. */
 export interface ClientErrorServerEvent extends BaseServerEvent {
 	type: 'client_error';
-	error_event: {
-		code: number;
-		error_name: string;
-		message?: string;
-	};
+	error_event: ServerErrorPayload;
+}
+
+/** Current protocol name for an agent-reported error. */
+export interface ErrorServerEvent extends BaseServerEvent {
+	type: 'error';
+	error_event: ServerErrorPayload;
 }
 
 /** Queue state when the agent is at its concurrency limit. */
@@ -356,6 +409,7 @@ export type ServerEvent =
 	| VadScoreServerEvent
 	| PingServerEvent
 	| ClientErrorServerEvent
+	| ErrorServerEvent
 	| QueueStatusServerEvent
 	| ClientToolCallServerEvent
 	| AgentToolRequestServerEvent
@@ -376,8 +430,13 @@ export interface ClientToolCallRequest {
 	parameters: Record<string, unknown>;
 	/** Event identifier used for ordering. */
 	event_id: number;
-	/** Whether the server is waiting for a `client_tool_result`. */
-	expects_response: boolean;
+	/**
+	 * Whether the server is waiting for a `client_tool_result`.
+	 *
+	 * The current protocol sends this flag. Older payloads may omit it, in
+	 * which case the controller still sends a result.
+	 */
+	expects_response?: boolean;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -490,6 +549,13 @@ export interface McpToolApprovalResultClientEvent {
 	is_approved: boolean;
 }
 
+/** Positive or negative feedback for the current agent response. */
+export interface FeedbackClientEvent {
+	type: 'feedback';
+	score: 'like' | 'dislike' | null;
+	event_id: number;
+}
+
 /** Every frame this library can send to the agent. */
 export type ClientEvent =
 	| ConversationInitiationClientData
@@ -499,7 +565,61 @@ export type ClientEvent =
 	| UserActivityClientEvent
 	| ContextualUpdateClientEvent
 	| ClientToolResultClientEvent
-	| McpToolApprovalResultClientEvent;
+	| McpToolApprovalResultClientEvent
+	| FeedbackClientEvent;
+
+/**
+ * Handler for one named client tool.
+ *
+ * The first argument is the tool parameter object. The second argument is the
+ * full protocol payload, which includes the call id and the `expects_response`
+ * flag.
+ */
+export type ClientToolHandler = (
+	parameters: Record<string, unknown>,
+	call: ClientToolCallRequest
+) => unknown | Promise<unknown>;
+
+/**
+ * An MCP tool call in the only state that can be answered with an approval.
+ */
+export interface MCPToolApprovalRequest {
+	/** MCP service identifier. */
+	service_id: string;
+	/** Identifier echoed in `mcp_tool_approval_result`. */
+	tool_call_id: string;
+	/** Tool name shown to the user. */
+	tool_name: string;
+	/** Optional tool description. */
+	tool_description?: string | null;
+	/** Arguments the agent wants to pass to the tool. */
+	parameters: Record<string, unknown>;
+	/** Server timestamp, when supplied. */
+	timestamp?: string;
+	/** This request is always in the approval state. */
+	state: 'awaiting_approval';
+	/** Seconds before the server stops waiting for a decision. */
+	approval_timeout_secs?: number;
+	/** Existing result rows, if the server supplied them with the request. */
+	result?: Array<Record<string, unknown>>;
+	/** Existing error message, if the server supplied one. */
+	error_message?: string;
+}
+
+/** Context passed to an MCP approval handler. */
+export interface MCPToolApprovalRequestContext {
+	/**
+	 * Aborted when the decision can no longer reach the server, for example
+	 * when the session ends or the tool call leaves the approval state.
+	 */
+	signal: AbortSignal;
+}
+
+/** Decides whether an MCP tool call may proceed. */
+export type MCPToolApprovalHandler = (
+	call: MCPToolApprovalRequest,
+	context: MCPToolApprovalRequestContext
+) => boolean | Promise<boolean>;
 
 /* -------------------------------------------------------------------------- */
 /*                              Public API types                              */
@@ -516,15 +636,38 @@ export interface ConversationOptions {
 	 * Defaults to `/api/signed-url` when signed mode is requested.
 	 */
 	signedUrlEndpoint?: string;
-	/** WebSocket origin for public agents. Defaults to `wss://api.elevenlabs.io`. */
+	/**
+	 * Explicit WebSocket origin for public agents. Takes precedence over
+	 * `serverLocation`. Defaults to the origin for `serverLocation`.
+	 */
 	origin?: string;
+	/** Data residency used when building a URL for a public agent id. */
+	serverLocation?: ServerLocation;
+	/**
+	 * Requested transport. Only `websocket` is implemented. Requesting
+	 * `webrtc` fails with a `not-supported` error before microphone access.
+	 */
+	connectionType?: ConversationConnectionType;
+	/**
+	 * Run a text only session. Microphone permission and Web Audio contexts are
+	 * skipped, and messages are exchanged as text over the WebSocket.
+	 */
+	textOnly?: boolean;
 	/** Variables available to the ElevenLabs agent prompt. */
 	dynamicVariables?: Record<string, string | number | boolean>;
 	/** Stable end-user identifier for analytics and memory. */
 	userId?: string;
 	/** Per-session conversation configuration overrides. */
 	overrides?: ConversationConfigOverride;
-	/** Handler for `client_tool_call` events. Return a string or JSON value. */
+	/**
+	 * Named client tools. The key is the tool name configured on the agent.
+	 * Registered tools take precedence over {@link onClientToolCall}.
+	 */
+	clientTools?: Record<string, ClientToolHandler>;
+	/**
+	 * Fallback handler for `client_tool_call` events that do not match a named
+	 * client tool. Return a string or a JSON serializable value.
+	 */
 	onClientToolCall?: (
 		call: ClientToolCallRequest
 	) =>
@@ -532,6 +675,14 @@ export interface ConversationOptions {
 		| Record<string, unknown>
 		| unknown[]
 		| Promise<string | Record<string, unknown> | unknown[]>;
+	/** Preferred microphone device id. */
+	inputDeviceId?: string;
+	/** Preferred output device id, when the browser supports output routing. */
+	outputDeviceId?: string;
+	/** Start the session with the microphone muted. */
+	micMuted?: boolean;
+	/** Initial playback gain from `0` to `1`. Defaults to `1`. */
+	outputVolume?: number;
 	/** Microphone chunk duration in milliseconds. Clamped to 50 to 250. Defaults to 100. */
 	inputChunkDurationMs?: number;
 	/** Flush agent audio locally as soon as the user starts speaking. Defaults to `true`. */
@@ -548,8 +699,15 @@ export interface ConversationOptions {
 	debug?: boolean;
 	/** Called whenever the connection status changes. */
 	onStatusChange?: (status: ConversationStatus) => void;
+	/** Called once the handshake metadata is available. */
+	onConnect?: (details: { conversationId: string }) => void;
 	/** Called when a transcript entry is created or updated. */
 	onTranscript?: (message: TranscriptMessage) => void;
+	/**
+	 * Called with each transcript update. This is an alias for
+	 * {@link onTranscript}, provided for API familiarity.
+	 */
+	onMessage?: (message: TranscriptMessage) => void;
 	/** Called with a human-readable error after the controller has cleaned up. */
 	onError?: (error: ConversationError) => void;
 	/** Called with the latest time-to-first-audio measurement, in milliseconds. */
@@ -560,6 +718,61 @@ export interface ConversationOptions {
 	onDisconnect?: (details: DisconnectDetails) => void;
 	/** Called once the negotiation metadata supplies the conversation id. */
 	onConversationId?: (conversationId: string) => void;
+	/** Called whenever the high-level conversation mode changes. */
+	onModeChange?: (mode: ConversationMode) => void;
+	/** Called when feedback becomes available or unavailable. */
+	onCanSendFeedbackChange?: (canSendFeedback: boolean) => void;
+	/** Called for the server side voice activity score. */
+	onVadScore?: (score: number) => void;
+	/** Called with every agent audio chunk before playback. */
+	onAudio?: (base64: string) => void;
+	/** Called when an audio chunk includes character timing data. */
+	onAudioAlignment?: (alignment: AudioAlignment) => void;
+	/** Called for each streaming part of an agent text response. */
+	onAgentChatResponsePart?: (part: AgentChatResponsePartServerEvent['text_response_part']) => void;
+	/** Called when the server corrects a previous agent response. */
+	onAgentResponseCorrection?: (
+		payload: AgentResponseCorrectionServerEvent['agent_response_correction_event']
+	) => void;
+	/** Called when the agent finishes a response. */
+	onAgentResponseComplete?: (eventId: number) => void;
+	/** Called when the agent sends response metadata. */
+	onAgentResponseMetadata?: (
+		metadata: AgentResponseMetadataServerEvent['agent_response_metadata_event']
+	) => void;
+	/** Called for each keep-alive ping. The client answers automatically. */
+	onPing?: (ping: PingServerEvent['ping_event']) => void;
+	/** Called when the server reports LLM context window usage. */
+	onContextUsage?: (usage: ContextUsageServerEvent['context_usage_event']) => void;
+	/** Called for every MCP tool call lifecycle update. */
+	onMCPToolCall?: (call: McpToolCallServerEvent['mcp_tool_call']) => void;
+	/** Called when MCP integration connection status changes. */
+	onMCPConnectionStatus?: (status: McpConnectionStatusServerEvent['mcp_connection_status']) => void;
+	/**
+	 * Decides whether an MCP tool call in `awaiting_approval` may proceed.
+	 * The controller sends exactly one `mcp_tool_approval_result` for each call.
+	 */
+	onMCPToolApprovalRequest?: MCPToolApprovalHandler;
+	/** Called when the agent requests a server side tool. */
+	onAgentToolRequest?: (request: AgentToolRequestServerEvent['agent_tool_request']) => void;
+	/** Called when an agent tool call finishes. */
+	onAgentToolResponse?: (
+		response:
+			| AgentToolResponseServerEvent['agent_tool_response']
+			| AgentToolResponseFullPayloadServerEvent['agent_tool_response_full_payload']
+	) => void;
+	/** Called when a guardrail fires. */
+	onGuardrailTriggered?: (
+		event: GuardrailTriggeredServerEvent['guardrail_triggered_event']
+	) => void;
+	/** Called with the initiation metadata before audio starts. */
+	onConversationMetadata?: (metadata: ConversationInitiationMetadata) => void;
+	/** Called for every parsed incoming protocol event. */
+	onIncomingEvent?: (event: ServerEvent) => void;
+	/** Called for every outgoing protocol event. */
+	onOutgoingEvent?: (event: ClientEvent) => void;
+	/** Called when a client tool has no matching named or fallback handler. */
+	onUnhandledClientToolCall?: (call: ClientToolCallRequest) => void;
 	/** Low-level protocol diagnostics, useful in development. */
 	onDebug?: (event: DebugEvent) => void;
 }
@@ -571,6 +784,11 @@ export interface StartConversationOptions {
 	 * Ignored when the target is already a `ws://` or `wss://` URL.
 	 */
 	signed?: boolean;
+	/**
+	 * Run this session in text only mode, overriding the controller default.
+	 * Microphone permission and Web Audio contexts are skipped.
+	 */
+	textOnly?: boolean;
 }
 
 /** Why and how a conversation socket closed. */
@@ -604,7 +822,11 @@ export type ConversationErrorCode =
 	| 'connection-failed'
 	| 'connection-timeout'
 	| 'server-closed'
-	| 'protocol-error';
+	| 'protocol-error'
+	| 'device-not-found'
+	| 'device-busy'
+	| 'device-constraints'
+	| 'device-switch-failed';
 
 /**
  * Error thrown internally and surfaced through `error` / `onError`.

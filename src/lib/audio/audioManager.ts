@@ -18,6 +18,7 @@ export type AudioManagerErrorCode =
 	| 'worklet-failed'
 	| 'decode-failed'
 	| 'unsupported-format'
+	| 'device-switch-failed'
 	| 'closed';
 
 /**
@@ -55,6 +56,18 @@ export interface AudioLevels {
 	combined: number;
 }
 
+/** One audio input or output device exposed by the browser. */
+export interface AudioDeviceInfo {
+	/** Stable device id. It can change after the page reloads. */
+	deviceId: string;
+	/** Human readable label, often empty before permission is granted. */
+	label: string;
+	/** Device direction. */
+	kind: 'audioinput' | 'audiooutput';
+	/** Group id shared by devices on the same physical hardware. */
+	groupId: string;
+}
+
 /** Callbacks and tuning knobs for {@link AudioManager}. */
 export interface AudioManagerOptions {
 	/** Called with base64 PCM16 little-endian mono chunks for the socket. */
@@ -75,6 +88,10 @@ export interface AudioManagerOptions {
 	interruptOnUserSpeech?: boolean;
 	/** Normalized RMS threshold for speech detection. Defaults to `0.075`. */
 	vadThreshold?: number;
+	/** Preferred microphone device id. */
+	inputDeviceId?: string;
+	/** Preferred output device id, when the browser supports output routing. */
+	outputDeviceId?: string;
 }
 
 /** Internal playback bookkeeping for one scheduled audio chunk. */
@@ -153,7 +170,7 @@ class SvelteElevenLabsCapture extends AudioWorkletProcessor {
 	}
 }
 
-registerProcessor('${CAPTURE_WORKLET_NAME}', SvelteElevenLabsCapture);
+registerProcessor('__SVELTE_ELEVENLABS_CAPTURE__', SvelteElevenLabsCapture);
 `;
 
 /**
@@ -191,6 +208,37 @@ export function parseAudioFormat(format: AudioFormatId | string): AudioFormat {
 		sampleRate,
 		channels: 1
 	};
+}
+
+/**
+ * Enumerate the audio input and output devices the browser exposes.
+ *
+ * Labels can be empty until the user grants microphone permission. Output
+ * devices are only listed by browsers that support audio output routing.
+ *
+ * @returns Audio devices in the order reported by the browser.
+ */
+export async function listAudioDevices(): Promise<AudioDeviceInfo[]> {
+	if (
+		!BROWSER ||
+		typeof navigator === 'undefined' ||
+		typeof navigator.mediaDevices?.enumerateDevices !== 'function'
+	) {
+		return [];
+	}
+
+	const devices = await navigator.mediaDevices.enumerateDevices();
+	return devices
+		.filter(
+			(device): device is MediaDeviceInfo & { kind: 'audioinput' | 'audiooutput' } =>
+				device.kind === 'audioinput' || device.kind === 'audiooutput'
+		)
+		.map((device) => ({
+			deviceId: device.deviceId,
+			label: device.label || (device.kind === 'audioinput' ? 'Microphone' : 'Speaker'),
+			kind: device.kind,
+			groupId: device.groupId
+		}));
 }
 
 /**
@@ -387,6 +435,9 @@ export class AudioManager {
 	#nextStartTime = 0;
 	#idleTimer: ReturnType<typeof setTimeout> | null = null;
 	#outputActive = false;
+	#inputDeviceId: string | null = null;
+	#outputDeviceId: string | null = null;
+	#captureGeneration = 0;
 	#inputFormat: AudioFormat | null = null;
 	#inputActualRate = DEFAULT_SAMPLE_RATE;
 	#muted = false;
@@ -411,6 +462,8 @@ export class AudioManager {
 	 */
 	constructor(options: AudioManagerOptions = {}) {
 		this.#options = options;
+		this.#inputDeviceId = options.inputDeviceId?.trim() || null;
+		this.#outputDeviceId = options.outputDeviceId?.trim() || null;
 	}
 
 	/**
@@ -449,6 +502,16 @@ export class AudioManager {
 		return this.#outputContext?.sampleRate ?? 0;
 	}
 
+	/** Preferred microphone device id, when one is configured. */
+	get inputDeviceId(): string | null {
+		return this.#inputDeviceId;
+	}
+
+	/** Preferred output device id, when one is configured. */
+	get outputDeviceId(): string | null {
+		return this.#outputDeviceId;
+	}
+
 	/**
 	 * Request microphone access and create both audio contexts.
 	 *
@@ -484,16 +547,7 @@ export class AudioManager {
 		let outputContext: AudioContext | null = null;
 
 		try {
-			stream = await navigator.mediaDevices.getUserMedia({
-				audio: {
-					echoCancellation: true,
-					noiseSuppression: true,
-					autoGainControl: true,
-					channelCount: { ideal: 1 },
-					sampleRate: { ideal: DEFAULT_SAMPLE_RATE }
-				},
-				video: false
-			});
+			stream = await this.#openInputStream();
 
 			/*
 			 * stopConversation() can close the manager while the permission
@@ -526,6 +580,7 @@ export class AudioManager {
 			this.#inputActualRate = inputContext.sampleRate;
 			this.#outputContext = outputContext;
 			this.#createOutputGraph();
+			await this.#applyOutputDevice();
 			this.#prepared = true;
 
 			await this.#resumeContexts();
@@ -570,10 +625,19 @@ export class AudioManager {
 		}
 
 		this.#inputFormat = parsedFormat;
-		this.#inputActualRate = this.#inputContext.sampleRate;
+		await this.#buildInputGraph(parsedFormat);
+	}
 
+	/** Build the capture graph for the current input stream and format. */
+	async #buildInputGraph(parsedFormat: AudioFormat): Promise<void> {
 		const context = this.#inputContext;
 		const stream = this.#inputStream;
+		if (!context || !stream) {
+			throw new AudioManagerError('context-failed', 'The microphone audio graph is not available.');
+		}
+
+		this.#inputActualRate = context.sampleRate;
+
 		let source: MediaStreamAudioSourceNode | null = null;
 		let analyser: AnalyserNode | null = null;
 		let filter: BiquadFilterNode | null = null;
@@ -668,6 +732,114 @@ export class AudioManager {
 		}
 		if (muted && this.#userSpeaking) {
 			this.#setUserSpeaking(false);
+		}
+	}
+
+	/**
+	 * Switch the microphone while a session is running.
+	 *
+	 * The new stream is requested before the old graph is torn down, so a
+	 * failed permission check leaves the current microphone untouched. Call
+	 * this from a user gesture when the browser requires one for device access.
+	 *
+	 * @param deviceId - Target input device id, or `undefined` for the browser default.
+	 * @throws {AudioManagerError} When the new stream cannot be opened.
+	 */
+	async changeInputDevice(deviceId?: string): Promise<void> {
+		if (this.#closed) {
+			throw new AudioManagerError('closed', 'This AudioManager has already been closed.');
+		}
+
+		const previous = this.#inputDeviceId;
+		const next = deviceId?.trim() || null;
+		this.#inputDeviceId = next;
+		if (!this.#prepared || !this.#inputContext) return;
+
+		let stream: MediaStream;
+		try {
+			stream = await this.#openInputStream();
+		} catch (cause) {
+			// Keep the previous preference so a failed switch can fall back to it.
+			this.#inputDeviceId = previous;
+			throw cause instanceof AudioManagerError ? cause : this.#mapGetUserMediaError(cause);
+		}
+
+		if (this.#closed) {
+			this.#inputDeviceId = previous;
+			stopStream(stream);
+			throw new AudioManagerError(
+				'closed',
+				'The conversation ended while the input device was changing.'
+			);
+		}
+
+		const wasStarted = this.#inputStarted;
+		const format = this.#inputFormat;
+		this.#teardownInputGraph();
+		this.#inputStream = stream;
+		this.#inputActualRate = this.#inputContext.sampleRate;
+
+		if (wasStarted && format) {
+			try {
+				await this.#buildInputGraph(format);
+			} catch (cause) {
+				this.#inputDeviceId = previous;
+				stopStream(stream);
+				this.#inputStream = null;
+				const error =
+					cause instanceof AudioManagerError
+						? cause
+						: new AudioManagerError(
+								'device-switch-failed',
+								'Could not switch the microphone. Select another input device and try again.',
+								cause
+							);
+				this.#report(error);
+				throw error;
+			}
+		}
+	}
+
+	/**
+	 * Route playback to a specific output device.
+	 *
+	 * This requires `AudioContext.setSinkId`, which browsers expose
+	 * selectively. When no output context exists yet, the id is stored and
+	 * applied by {@link prepare}.
+	 *
+	 * @param deviceId - Target output device id, or `undefined` for the default.
+	 * @throws {AudioManagerError} When the browser cannot route output or the device fails.
+	 */
+	async changeOutputDevice(deviceId?: string): Promise<void> {
+		if (this.#closed) {
+			throw new AudioManagerError('closed', 'This AudioManager has already been closed.');
+		}
+
+		const next = deviceId?.trim() || null;
+		if (!this.#outputContext) {
+			this.#outputDeviceId = next;
+			return;
+		}
+
+		const context = this.#outputContext as AudioContext & {
+			setSinkId?: (sinkId: string) => Promise<void>;
+		};
+		if (typeof context.setSinkId !== 'function') {
+			throw new AudioManagerError(
+				'unsupported',
+				'This browser cannot route audio to a specific output device.'
+			);
+		}
+
+		try {
+			await context.setSinkId(next ?? '');
+			this.#outputDeviceId = next;
+		} catch (cause) {
+			throw new AudioManagerError(
+				'device-switch-failed',
+				'Could not switch the output device. Check that the device is still connected.',
+				cause
+			);
 		}
 	}
 
@@ -925,6 +1097,83 @@ export class AudioManager {
 		await Promise.all(contexts.map((context) => this.#closeContext(context)));
 	}
 
+	/** Open a microphone stream for the current device preference. */
+	async #openInputStream(): Promise<MediaStream> {
+		const audio: MediaTrackConstraints = {
+			echoCancellation: true,
+			noiseSuppression: true,
+			autoGainControl: true,
+			channelCount: { ideal: 1 },
+			sampleRate: { ideal: DEFAULT_SAMPLE_RATE }
+		};
+		if (this.#inputDeviceId) audio.deviceId = { exact: this.#inputDeviceId };
+
+		return navigator.mediaDevices.getUserMedia({ audio, video: false });
+	}
+
+	/** Stop the active stream and release the capture graph without closing the context. */
+	#teardownInputGraph(): void {
+		stopStream(this.#inputStream);
+
+		if (typeof AudioWorkletNode !== 'undefined' && this.#inputCapture instanceof AudioWorkletNode) {
+			this.#inputCapture.port.onmessage = null;
+		}
+		if (
+			typeof ScriptProcessorNode !== 'undefined' &&
+			this.#inputCapture instanceof ScriptProcessorNode
+		) {
+			this.#inputCapture.onaudioprocess = null;
+		}
+
+		this.#disconnectNode(this.#inputSource);
+		this.#disconnectNode(this.#inputFilter);
+		this.#disconnectNode(this.#inputAnalyser);
+		this.#disconnectNode(this.#inputCapture);
+		this.#disconnectNode(this.#inputSink);
+
+		this.#inputStream = null;
+		this.#inputSource = null;
+		this.#inputFilter = null;
+		this.#inputAnalyser = null;
+		this.#inputCapture = null;
+		this.#inputSink = null;
+		this.#fallbackBuffer = null;
+		this.#fallbackOffset = 0;
+		this.#inputStarted = false;
+		this.#inputVolume = 0;
+		if (this.#userSpeaking) this.#setUserSpeaking(false);
+
+		if (this.#inputWorkletUrl) {
+			URL.revokeObjectURL(this.#inputWorkletUrl);
+			this.#inputWorkletUrl = null;
+		}
+	}
+
+	/** Apply a stored output device preference to a freshly created context. */
+	async #applyOutputDevice(): Promise<void> {
+		if (!this.#outputDeviceId || !this.#outputContext) return;
+
+		const context = this.#outputContext as AudioContext & {
+			setSinkId?: (sinkId: string) => Promise<void>;
+		};
+		if (typeof context.setSinkId !== 'function') {
+			throw new AudioManagerError(
+				'unsupported',
+				'This browser cannot route audio to the selected output device.'
+			);
+		}
+
+		try {
+			await context.setSinkId(this.#outputDeviceId);
+		} catch (cause) {
+			throw new AudioManagerError(
+				'device-switch-failed',
+				'Could not open the selected output device. Check that it is still connected.',
+				cause
+			);
+		}
+	}
+
 	/** Create the capture context, preferring the native 16 kHz rate. */
 	#createInputContext(): AudioContext {
 		try {
@@ -980,7 +1229,12 @@ export class AudioManager {
 
 		if (context.audioWorklet && typeof AudioWorkletNode !== 'undefined') {
 			try {
-				const blob = new Blob([CAPTURE_WORKLET_SOURCE], { type: 'application/javascript' });
+				const processorName = `${CAPTURE_WORKLET_NAME}-${++this.#captureGeneration}`;
+				const source = CAPTURE_WORKLET_SOURCE.replace(
+					'__SVELTE_ELEVENLABS_CAPTURE__',
+					processorName
+				);
+				const blob = new Blob([source], { type: 'application/javascript' });
 				const url = URL.createObjectURL(blob);
 				this.#inputWorkletUrl = url;
 				await context.audioWorklet.addModule(url);
@@ -992,7 +1246,7 @@ export class AudioManager {
 						'The conversation ended while the capture processor was loading.'
 					);
 				}
-				const node = new AudioWorkletNode(context, CAPTURE_WORKLET_NAME, {
+				const node = new AudioWorkletNode(context, processorName, {
 					numberOfInputs: 1,
 					numberOfOutputs: 1,
 					outputChannelCount: [1]

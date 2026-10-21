@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.4.0] - 2026-10-21
+
+### Added
+
+- Text only sessions with `textOnly` on conversation options and `StartConversationOptions`, skipping microphone permission and Web Audio setup while keeping typed turns on the same socket.
+- `ConversationProvider`, `getConversationContext`, and `useConversationClientTool` for shared controllers and component scoped client tools.
+- Named client tools through `clientTools`, plus `registerClientTool` and `onUnhandledClientToolCall`.
+- Server location selection for `us`, `eu-residency`, `in-residency`, and `global`.
+- MCP tool approval handling with `onMCPToolApprovalRequest` and `sendMCPToolApprovalResult`.
+- Response feedback, user activity throttling, VAD score, LLM context usage, audio alignment, and agent tool callbacks.
+- Audio input and output device selection, live device switching, device enumeration through `listAudioDevices`, and playback gain through `setVolume` and `outputGain`.
+- `endSession`, `getInputVolume`, `getOutputVolume`, `getId`, and byte frequency aliases on the controller.
+- Text composer, feedback buttons, playback volume, and device selectors in `ConversationWidget` and the showcase.
+- Offline tests for server locations, text only guards, feedback, user activity throttling, client tools, MCP approvals, volume clamping, and device enumeration guards.
+
+### Changed
+
+- Replaced the README package comparison with a plain description of the library, plus documentation for text only sessions, server locations, client tools, feedback, and audio controls.
+- Documented the new controller fields and methods, widget props, provider, and client tool hook in the README.
+- Updated the showcase with voice and text modes, typed turns, feedback, volume, and device controls.
+- Bumped the package version from `0.3.0` to `0.4.0`.
+
+### Fixed
+
+- Accept current protocol `error` events as well as legacy `client_error` events.
+- Send a client tool result when the incoming payload omits `expects_response`.
+- Restore the selected audio device after a failed input or output switch.
+- Report the same start error again when a retry fails within the console deduplication window.
+
 ## [0.3.0] - 2026-10-21
 
 ### Added
