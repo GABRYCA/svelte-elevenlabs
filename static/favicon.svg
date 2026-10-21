@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+	<title>svelte-elevenlabs signal mark</title>
+	<rect width="64" height="64" rx="6" fill="#12120f"/>
+	<path d="M13 44V32M21 44V17M29 44V25M37 44V11M45 44V29M53 44V36" stroke="#ff5d2b" stroke-width="5" stroke-linecap="square"/>
+	<path d="M10 52h44" stroke="#cdf66c" stroke-width="2" opacity=".65"/>
+</svg>
