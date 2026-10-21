@@ -86,7 +86,7 @@
 	const helper = $derived.by(() => {
 		if (conversation.status === 'connected') {
 			if (conversation.isMuted) return 'Microphone muted. The agent can still speak.';
-			return 'Microphone live. Speak naturally — barge-in flushes agent audio.';
+			return 'Microphone live. Speak naturally. Barge-in flushes agent audio.';
 		}
 		if (conversation.status === 'connecting') {
 			return 'Requesting microphone access and negotiating formats.';
@@ -152,7 +152,7 @@
 	}
 
 	function formatRate(format: string | null): string {
-		if (!format) return '—';
+		if (!format) return '-';
 		return format.replace('pcm_', '').replace('ulaw_', 'µ-law ');
 	}
 
@@ -164,7 +164,7 @@
 	}
 
 	function shortId(id: string | null): string {
-		if (!id) return '—';
+		if (!id) return '-';
 		return id.length > 12 ? `${id.slice(0, 8)}…${id.slice(-3)}` : id;
 	}
 
@@ -228,7 +228,7 @@
 		<dl class="se-widget__telemetry">
 			<div>
 				<dt>Latency</dt>
-				<dd>{conversation.latency === null ? '—' : `${conversation.latency} ms`}</dd>
+				<dd>{conversation.latency === null ? '-' : `${conversation.latency} ms`}</dd>
 			</div>
 			<div>
 				<dt>Session</dt>

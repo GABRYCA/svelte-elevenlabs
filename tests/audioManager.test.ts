@@ -32,6 +32,7 @@ describe('parseAudioFormat', () => {
 		expect(() => parseAudioFormat('mp3_44100')).toThrow(AudioManagerError);
 		expect(() => parseAudioFormat('pcm_4000')).toThrow(/Unsupported sample rate/);
 		expect(() => parseAudioFormat('pcm_96000')).toThrow(/Unsupported sample rate/);
+		expect(() => parseAudioFormat('ulaw_16000')).toThrow(/only valid at 8000 Hz/);
 	});
 });
 

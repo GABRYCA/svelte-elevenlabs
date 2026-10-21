@@ -2,66 +2,59 @@
 
 > **This is an independent community project. Not affiliated with or endorsed by Eleven Labs Inc.**
 
-A production-minded **Svelte 5 library and SvelteKit starter** for **ElevenLabs Conversational AI**. One rune opens a low-latency voice session, exposes reactive call state, streams PCM audio over a WebSocket, and tears down every socket, media track, audio node, and timer when the component leaves the page.
+A Svelte 5 library and SvelteKit 3 showcase for ElevenLabs Conversational AI. One rune opens a low-latency voice session, exposes reactive call state, streams PCM audio over a WebSocket, and releases every socket, media track, audio node, and timer when the component leaves the page.
 
-Built for **Bun 1.4+**, **Svelte 5**, **SvelteKit 3**, **strict TypeScript**, and **Tailwind CSS 4**.
+Runs on **Node 22.17 or newer** and **Bun 1.4 or newer**. Built with **Svelte 5**, **SvelteKit 3**, **strict TypeScript**, and **Tailwind CSS 4**.
 
-- **Rune-first:** `status`, `isSpeaking`, `isListening`, `volume`, `transcripts`, and `error` update directly in your markup.
-- **Signed URLs without leaks:** the API key stays in `process.env` on the SvelteKit server; the browser receives only a short-lived URL.
+- **Rune-first state:** `status`, `isSpeaking`, `isListening`, `volume`, `transcripts`, and `error` update directly in your markup.
+- **Signed URLs without leaks:** the API key stays in the SvelteKit server process. The browser receives only a short-lived URL.
 - **Real audio:** AudioWorklet capture, low-pass anti-aliasing, sample-rate conversion, PCM16 little-endian base64, one-clock playback scheduling, and immediate barge-in flushing.
-- **Zero-leak cleanup:** `useConversation` registers an `$effect` teardown. `createConversation` is available when you want to own the lifecycle.
+- **Clean teardown:** `useConversation` registers an `$effect` teardown. Use `createConversation` when you want to own the lifecycle.
 - **Ready-made UI:** an analyser-driven `<AudioVisualizer>` and a complete `<ConversationWidget>` ship in the same package.
-- **Strict, documented types:** every exported interface and function carries JSDoc for editor IntelliSense.
-
-## 5-line quickstart
-
-```svelte
-<script lang="ts">
-	import { useConversation } from 'svelte-elevenlabs';
-	const conversation = useConversation({ agentId: 'agent_…' });
-</script>
-
-<button onclick={() => conversation.startConversation()}>Talk</button>
-```
-
-That is the whole component-level setup. `useConversation` must be called during component initialisation so its cleanup effect can register. Use `createConversation` in a store or test and call `destroy()` yourself.
-
-> **Signed URLs are recommended for production.** Pass `{ signed: true }` as the second argument to `startConversation` and provide the server route shown below. Public agent IDs connect directly and are convenient for demos.
+- **Two hosting paths:** a safe static GitHub Pages demo with public agent ids, and a full Node or Bun server build with signed URL exchange.
+- **Typed public surface:** every exported interface and function carries JSDoc for editor IntelliSense.
 
 ## Requirements
 
-| Requirement | Version / note                                                         |
-| ----------- | ---------------------------------------------------------------------- |
-| Bun         | **1.4 or newer** (the demo uses Bun 1.4.3 and `@sveltejs/adapter-bun`) |
-| Svelte      | **5.x**                                                     |
-| SvelteKit   | **3.x** for the included demo; the rune itself is Svelte-only          |
-| TypeScript  | strict mode; no implicit `any`                                         |
-| Browser     | WebSocket, Web Audio, `getUserMedia`, and a secure context             |
-| ElevenLabs  | An agent id and, for signed mode, a workspace API key                  |
+| Requirement | Version or note                                                             |
+| ----------- | --------------------------------------------------------------------------- |
+| Node        | **22.17 or newer** for the server build and package tooling                 |
+| Bun         | **1.4 or newer** for installs, scripts, and the optional Bun server adapter |
+| Svelte      | **5.x** peer dependency                                                     |
+| SvelteKit   | **3.x** for the included showcase. The rune itself only needs Svelte.       |
+| TypeScript  | Strict mode with no implicit `any`                                          |
+| Browser     | WebSocket, Web Audio, `getUserMedia`, and a secure context                  |
+| ElevenLabs  | An agent id and, for signed mode, a workspace API key                       |
 
-The microphone requires **HTTPS or localhost**. Browsers block `getUserMedia` in insecure contexts; the library reports this as a clear `insecure-context` error instead of failing silently.
+The microphone requires **HTTPS or localhost**. Browsers block `getUserMedia` in insecure contexts. The library reports this as a clear `insecure-context` error instead of failing silently.
 
 ## Install
 
 ```sh
-# Bun 1.4+
+# Bun
 bun add svelte-elevenlabs
+
+# npm
+npm install svelte-elevenlabs
 ```
 
-To run the included showcase locally:
+The package is ESM-only and declares Svelte 5 as a peer dependency. The root entry contains Svelte components, so use a Svelte-aware bundler. For Node scripts, tests, or server code, use the Node-safe subpaths:
 
-```sh
-bun install
-cp .env.example .env
-# add ELEVENLABS_API_KEY to .env
-bun run dev
+```ts
+import { parseAudioFormat, resampleLinear } from 'svelte-elevenlabs/audio';
+import type { AudioFormat, ConversationOptions } from 'svelte-elevenlabs/types';
 ```
 
-In PowerShell, use `Copy-Item .env.example .env` instead of `cp`.
+Published subpaths:
+
+- `svelte-elevenlabs` for the rune, audio engine, types, and components.
+- `svelte-elevenlabs/audio` for the framework-agnostic audio manager and helpers.
+- `svelte-elevenlabs/types` for the public type surface and `ConversationError`.
+- `svelte-elevenlabs/package.json` for tooling.
 
 ### SvelteKit configuration
 
-The library is ESM-only and declares Svelte 5 as a peer dependency. No global CSS import is required for the components: their styles are scoped and use themeable CSS variables. If you use the ready-made Tailwind components inside your own Tailwind v4 app, make the package's output discoverable:
+No global CSS import is required for the components. Their styles are scoped and use themeable CSS variables. If you use the ready-made components inside a Tailwind v4 app, make the package output discoverable:
 
 ```css
 /* app.css */
@@ -69,89 +62,148 @@ The library is ESM-only and declares Svelte 5 as a peer dependency. No global CS
 @source '../node_modules/svelte-elevenlabs/dist';
 ```
 
+## 5-line quickstart
+
+```svelte
+<script lang="ts">
+	import { useConversation } from 'svelte-elevenlabs';
+	const conversation = useConversation({ agentId: 'agent_...' });
+</script>
+
+<button onclick={() => conversation.startConversation()}>Talk</button>
+```
+
+Call `useConversation` during component initialisation so its cleanup effect can register. Use `createConversation` in stores, tests, or other non-component code and call `destroy()` yourself.
+
+> **Signed URLs are recommended for production.** Pass `{ signed: true }` as the second argument to `startConversation` and provide the server route shown below. Public agent ids connect directly and are convenient for demos.
+
+## Choose a hosting mode
+
+### Static GitHub Pages
+
+The included workflow builds a prerendered demo with `@sveltejs/adapter-static`. It sets `PUBLIC_HOSTING_MODE=static`, hides and disables the signed URL radio, and never includes the API route or the API key in the artifact.
+
+Use this mode when you only have a public agent id, or when visitors paste a signed URL they already have. GitHub Pages cannot mint signed URLs because it has no server runtime.
+
+```sh
+PUBLIC_ELEVENLABS_AGENT_ID=agent_examplePublicId bun run build:pages
+```
+
+On Windows PowerShell:
+
+```powershell
+$env:PUBLIC_ELEVENLABS_AGENT_ID = 'agent_examplePublicId'
+bun run build:pages
+```
+
+The default Pages output is `build`. To preview it locally, serve that directory with any static file server, for example `bunx serve build`.
+
+### Node or Bun server
+
+The default application build uses `@sveltejs/adapter-node` and runs on Node 22.17+ or Bun 1.4+. This is the mode that can keep `ELEVENLABS_API_KEY` on the server and exchange it for signed URLs.
+
+```sh
+bun install
+cp .env.example .env
+# add ELEVENLABS_API_KEY and PUBLIC_ELEVENLABS_AGENT_ID
+bun run dev
+```
+
+In PowerShell, use `Copy-Item .env.example .env` instead of `cp`.
+
+Production build and start:
+
+```sh
+bun run build
+bun run start
+```
+
+The default port is `3000`. Set `PORT` to change it. The same build runs with Node:
+
+```sh
+npm run build
+npm start
+```
+
+The `start` script adds `--env-file-if-exists=.env`, so Node reads the same `.env` file that Bun loads automatically. In a container or a hosting platform, set the variables in the process environment instead.
+
+For a dedicated Bun server bundle:
+
+```sh
+bun run build:bun
+bun run start:bun
+```
+
+`build:bun` runs Vite with `bun --bun` because the Bun adapter requires the Bun runtime during the build. Do not run the Node and Bun builds against the same `build` directory at the same time. The last build wins.
+
 ## Signed URL server route
 
 Never put `ELEVENLABS_API_KEY` in a `PUBLIC_*` variable, a client component, or a browser request. The included route is [`src/routes/api/signed-url/+server.ts`](src/routes/api/signed-url/+server.ts). Its contract:
 
 ```http
-GET /api/signed-url?agent_id=agent_…
+GET /api/signed-url?agent_id=agent_...
 ```
+
+Success response:
 
 ```json
-{ "signed_url": "wss://api.elevenlabs.io/v1/convai/conversation?agent_id=…" }
+{ "signed_url": "wss://api.elevenlabs.io/v1/convai/conversation?agent_id=..." }
 ```
 
-The server performs:
+Error response:
 
-```text
-Browser ── GET /api/signed-url?agent_id ──► SvelteKit server
-                                               │
-                                               │ xi-api-key: process.env.ELEVENLABS_API_KEY
-                                               ▼
-                                  GET https://api.elevenlabs.io
-                                      /v1/convai/conversation/get-signed-url
+```json
+{ "error": { "message": "Human-readable explanation." } }
 ```
 
-The response is marked `Cache-Control: no-store`. The route validates the agent id, maps upstream failures to actionable messages, and never echoes the API key. The client-side rune fetches this same-origin route only when you call:
+The server validates the agent id, calls the ElevenLabs signed URL endpoint with `xi-api-key`, and returns a short-lived WebSocket URL. The response is marked `Cache-Control: no-store`. The API key is never echoed to the client.
+
+The rune fetches this same-origin route only when you ask for it:
 
 ```ts
-await conversation.startConversation('agent_…', { signed: true });
+await conversation.startConversation('agent_...', { signed: true });
 ```
 
 You can also pass an already-minted signed URL directly:
 
 ```ts
-await conversation.startConversation('wss://api.elevenlabs.io/v1/convai/conversation?agent_id=…');
+await conversation.startConversation('wss://api.elevenlabs.io/v1/convai/conversation?agent_id=...');
 ```
 
-### Environment variables
+> **Deploying a public server?** Add authentication or rate limiting to `/api/signed-url`. A public endpoint that mints signed URLs for arbitrary agent ids can spend your ElevenLabs quota.
+
+## Environment variables
 
 ```sh
-# .env — server only
+# .env: server only
 ELEVENLABS_API_KEY=your_key_here
 
-# Optional, public: prefills the demo target field
-PUBLIC_ELEVENLABS_AGENT_ID=agent_your_id
+# Optional and public: prefills the demo target field
+PUBLIC_ELEVENLABS_AGENT_ID=agent_examplePublicId
+
+# Static build only. build:pages sets this automatically.
+PUBLIC_HOSTING_MODE=static
+
+# Static build only. GitHub project sites use /<repository>.
+PAGES_BASE_PATH=/svelte-elevenlabs
 ```
 
-The demo reads `PUBLIC_ELEVENLABS_AGENT_ID` through SvelteKit 3's explicit environment contract in [`src/env.ts`](src/env.ts). The API key is read from `process.env` inside the server route, satisfying Bun's runtime environment and Node deployments alike. The legacy `$env/dynamic/*` modules are deprecated in SvelteKit 3.
+The demo reads public values through SvelteKit 3's explicit environment contract in [`src/env.ts`](src/env.ts) and `$app/env/public`. The API key is read from `process.env` only inside the server route. The legacy `$env/dynamic/*` modules are deprecated in SvelteKit 3.
 
-> **Deploying?** Restrict `/api/signed-url` to authenticated users or add rate limiting. A public endpoint that mints signed URLs for arbitrary agent ids spends your ElevenLabs quota.
+`build:pages` forces `PUBLIC_HOSTING_MODE=static`. `PAGES_BASE_PATH` is read from the environment for any build, because SvelteKit reloads the Vite config after the build without the original mode. The Pages workflow provides both values.
 
-## How it works
+## GitHub Pages deployment
 
-```text
-┌─────────────────────────────── BROWSER ───────────────────────────────┐
-│                                                                       │
-│  Svelte 5 component                                                   │
-│    │  startConversation(agentId | signedUrl)                          │
-│    ▼                                                                  │
-│  ConversationController                                       │
-│    ├─ status / isSpeaking / isListening / volume / transcripts        │
-│    ├─ WebSocket ── wss://api.elevenlabs.io (subprotocol: convai) ─────┼──► ElevenLabs
-│    │      ▲ ping/pong · metadata · transcripts · tools                │    Conversational
-│    │      └────────────── audio chunks ───────────────────────────────┼──► AI agent
-│    │                                                                  │
-│    ├─ AudioWorklet capture                                            │
-│    │      mic → low-pass → resample → PCM16LE → base64 ───────────────┼──► user_audio_chunk
-│    │                                                                  │
-│    └─ Playback clock                                                  │
-│           base64 → PCM/µ-law → AudioBufferSource → gain → analyser ───┼──► speakers
-│                                                                       │
-│  $effect teardown → close socket, stop tracks, close contexts         │
-└───────────────────────────────────────────────────────────────────────┘
-```
+The workflow lives in [`.github/workflows/pages.yml`](.github/workflows/pages.yml). It uses the official Pages actions and uploads `build`.
 
-For signed mode, the browser first calls the SvelteKit route. That route talks to ElevenLabs with the server key and returns a short-lived `wss://` URL. The browser never sees the key.
+1. Open repository **Settings**, then **Pages**, and set the source to **GitHub Actions**.
+2. Optionally add the repository variable `PUBLIC_ELEVENLABS_AGENT_ID` with a public agent id.
+3. Optionally set the repository variable `PAGES_BASE_PATH` for a custom domain or user site. When it is empty, the workflow uses the `base_path` output from `actions/configure-pages`.
+4. Push to `main` or run the workflow manually.
 
-Internally the rune:
+The artifact contains `index.html`, `_app` assets, `favicon.svg`, and `.nojekyll`. Asset URLs are relative, so the same build works at a project site path or at a domain root.
 
-1. **Prepares audio inside the user gesture** so playback is not suspended by autoplay policy.
-2. **Resolves the target** and opens the WebSocket with the `convai` subprotocol (falling back to a bare socket for proxies that reject it).
-3. **Sends the initiation payload** and waits for `conversation_initiation_metadata`.
-4. **Negotiates formats** and starts microphone capture at the server-requested rate.
-5. **Schedules agent audio** on a single playback clock; `AnalyserNode` data drives the visualizer.
-6. **Handles keep-alives, edits, tools, queue status, and barge-in**, then cleans up deterministically.
+Do not add `ELEVENLABS_API_KEY` to repository variables, Pages secrets, or any `PUBLIC_*` name. The static build cannot use it and must not receive it.
 
 ## API reference
 
@@ -161,77 +213,77 @@ Creates a reactive `ConversationController` and registers an `$effect` that dest
 
 ```ts
 const conversation = useConversation({
-	agentId: 'agent_…',
+	agentId: 'agent_...',
 	signedUrlEndpoint: '/api/signed-url',
 	dynamicVariables: { customer_name: 'Ada' },
 	debug: false
 });
 ```
 
-| Option                    | Type                                          | Default                   | Purpose                                       |
-| ------------------------- | --------------------------------------------- | ------------------------- | --------------------------------------------- |
-| `agentId`                 | `string`                                      | —                         | Default public agent id.                      |
-| `signedUrl`               | `string`                                      | —                         | Default signed WebSocket URL.                 |
-| `signedUrlEndpoint`       | `string`                                      | `'/api/signed-url'`       | Same-origin route used by signed mode.        |
-| `origin`                  | `string`                                      | `wss://api.elevenlabs.io` | WebSocket origin for public ids.              |
-| `dynamicVariables`        | `Record<string, string \| number \| boolean>` | —                         | Values available to the agent prompt.         |
-| `userId`                  | `string`                                      | —                         | Stable end-user id for analytics and memory.  |
-| `overrides`               | `ConversationConfigOverride`                  | —                         | Per-session prompt/TTS/ASR overrides.         |
-| `onClientToolCall`        | `(call) => string \| object \| Promise<…>`    | —                         | Executes `client_tool_call` requests.         |
-| `inputChunkDurationMs`    | `number`                                      | `100`                     | Mic chunk size, clamped to 50–250 ms.         |
-| `interruptOnUserSpeech`   | `boolean`                                     | `true`                    | Local VAD flushes playback when you speak.    |
-| `vadThreshold`            | `number`                                      | `0.075`                   | Normalized RMS threshold for local VAD.       |
-| `maxTranscripts`          | `number`                                      | `250`                     | Maximum retained transcript entries (min 20). |
-| `resetTranscriptsOnStart` | `boolean`                                     | `true`                    | Clear the log when a new session starts.      |
-| `autoCleanup`             | `boolean`                                     | `true`                    | Register the `$effect` teardown.              |
-| `debug`                   | `boolean`                                     | `false`                   | Print redacted protocol diagnostics.          |
-| `onStatusChange`          | `(status) => void`                            | —                         | Connection lifecycle callback.                |
-| `onTranscript`            | `(message) => void`                           | —                         | Called on transcript create/update.           |
-| `onError`                 | `(error: ConversationError) => void`          | —                         | Human-readable error callback.                |
-| `onLatency`               | `(ms) => void`                                | —                         | Time-to-first-audio measurement.              |
-| `onInterruption`          | `() => void`                                  | —                         | Local or server barge-in.                     |
-| `onDisconnect`            | `(details) => void`                           | —                         | WebSocket close details.                      |
-| `onConversationId`        | `(id) => void`                                | —                         | Negotiated ElevenLabs conversation id.        |
-| `onDebug`                 | `(event: DebugEvent) => void`                 | —                         | Structured, redacted debug events.            |
+| Option                    | Type                                          | Default                   | Purpose                                      |
+| ------------------------- | --------------------------------------------- | ------------------------- | -------------------------------------------- |
+| `agentId`                 | `string`                                      | -                         | Default public agent id.                     |
+| `signedUrl`               | `string`                                      | -                         | Default signed WebSocket URL.                |
+| `signedUrlEndpoint`       | `string`                                      | `'/api/signed-url'`       | Same-origin route used by signed mode.       |
+| `origin`                  | `string`                                      | `wss://api.elevenlabs.io` | WebSocket origin for public ids.             |
+| `dynamicVariables`        | `Record<string, string \| number \| boolean>` | -                         | Values available to the agent prompt.        |
+| `userId`                  | `string`                                      | -                         | Stable end-user id for analytics and memory. |
+| `overrides`               | `ConversationConfigOverride`                  | -                         | Per-session prompt, TTS, and ASR overrides.  |
+| `onClientToolCall`        | `(call) => string \| object \| Promise<...>`  | -                         | Executes `client_tool_call` requests.        |
+| `inputChunkDurationMs`    | `number`                                      | `100`                     | Mic chunk size, clamped to 50 to 250 ms.     |
+| `interruptOnUserSpeech`   | `boolean`                                     | `true`                    | Local VAD flushes playback when you speak.   |
+| `vadThreshold`            | `number`                                      | `0.075`                   | Normalized RMS threshold for local VAD.      |
+| `maxTranscripts`          | `number`                                      | `250`                     | Maximum retained transcript entries.         |
+| `resetTranscriptsOnStart` | `boolean`                                     | `true`                    | Clear the log when a new session starts.     |
+| `autoCleanup`             | `boolean`                                     | `true`                    | Register the `$effect` teardown.             |
+| `debug`                   | `boolean`                                     | `false`                   | Print redacted protocol diagnostics.         |
+| `onStatusChange`          | `(status) => void`                            | -                         | Connection lifecycle callback.               |
+| `onTranscript`            | `(message) => void`                           | -                         | Called on transcript create or update.       |
+| `onError`                 | `(error: ConversationError) => void`          | -                         | Human-readable error callback.               |
+| `onLatency`               | `(ms) => void`                                | -                         | Time-to-first-audio measurement.             |
+| `onInterruption`          | `() => void`                                  | -                         | Local or server barge-in.                    |
+| `onDisconnect`            | `(details) => void`                           | -                         | WebSocket close details.                     |
+| `onConversationId`        | `(id) => void`                                | -                         | Negotiated ElevenLabs conversation id.       |
+| `onDebug`                 | `(event: DebugEvent) => void`                 | -                         | Structured, redacted debug events.           |
 
 ### `ConversationController`
 
 All fields are Svelte 5 reactive state.
 
-| Member                                   | Type                                                                     | Description                                   |
-| ---------------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------- |
-| `status`                                 | `"disconnected" \| "connecting" \| "connected"`                          | Connection lifecycle.                         |
-| `isSpeaking`                             | `boolean`                                                                | Agent playback is scheduled or audible.       |
-| `isListening`                            | `boolean`                                                                | Microphone is live and the agent can hear it. |
-| `isUserSpeaking`                         | `boolean`                                                                | Local VAD currently detects speech.           |
-| `isMuted`                                | `boolean`                                                                | Outgoing microphone audio is suppressed.      |
-| `volume`                                 | `number`                                                                 | Loudest normalized level, `0..1`.             |
-| `inputVolume` / `outputVolume`           | `number`                                                                 | Per-direction normalized levels.              |
-| `transcripts`                            | `TranscriptMessage[]`                                                    | Stable live transcript entries.               |
-| `error`                                  | `string \| null`                                                         | UI-safe error message.                        |
-| `errorCode`                              | `ConversationErrorCode \| null`                                          | Stable error category.                        |
-| `latency`                                | `number \| null`                                                         | Latest first-audio latency in ms.             |
-| `latencyHistory`                         | `number[]`                                                               | Up to 12 recent measurements.                 |
-| `conversationId`                         | `string \| null`                                                         | ElevenLabs conversation id.                   |
-| `inputAudioFormat` / `outputAudioFormat` | `AudioFormatId \| null`                                                  | Negotiated formats.                           |
-| `queueStatus`                            | `QueueStatus \| null`                                                    | Concurrency queue state.                      |
-| `interruptions`                          | `number`                                                                 | Barge-in count for this session.              |
-| `messageCount`                           | `number`                                                                 | Derived transcript length.                    |
-| `mode`                                   | `"disconnected" \| "connecting" \| "ready" \| "listening" \| "speaking"` | Single status label.                          |
-| `canStart`                               | `boolean`                                                                | True when disconnected.                       |
+| Member                                     | Type                                                                     | Description                                   |
+| ------------------------------------------ | ------------------------------------------------------------------------ | --------------------------------------------- |
+| `status`                                   | `"disconnected" \| "connecting" \| "connected"`                          | Connection lifecycle.                         |
+| `isSpeaking`                               | `boolean`                                                                | Agent playback is scheduled or audible.       |
+| `isListening`                              | `boolean`                                                                | Microphone is live and the agent can hear it. |
+| `isUserSpeaking`                           | `boolean`                                                                | Local VAD currently detects speech.           |
+| `isMuted`                                  | `boolean`                                                                | Outgoing microphone audio is suppressed.      |
+| `volume`                                   | `number`                                                                 | Loudest normalized level, `0..1`.             |
+| `inputVolume` and `outputVolume`           | `number`                                                                 | Per-direction normalized levels.              |
+| `transcripts`                              | `TranscriptMessage[]`                                                    | Live transcript entries.                      |
+| `error`                                    | `string \| null`                                                         | UI-safe error message.                        |
+| `errorCode`                                | `ConversationErrorCode \| null`                                          | Stable error category.                        |
+| `latency`                                  | `number \| null`                                                         | Latest first-audio latency in ms.             |
+| `latencyHistory`                           | `number[]`                                                               | Up to 12 recent measurements.                 |
+| `conversationId`                           | `string \| null`                                                         | ElevenLabs conversation id.                   |
+| `inputAudioFormat` and `outputAudioFormat` | `AudioFormatId \| null`                                                  | Negotiated formats.                           |
+| `queueStatus`                              | `QueueStatus \| null`                                                    | Concurrency queue state.                      |
+| `interruptions`                            | `number`                                                                 | Barge-in count for this session.              |
+| `messageCount`                             | `number`                                                                 | Derived transcript length.                    |
+| `mode`                                     | `"disconnected" \| "connecting" \| "ready" \| "listening" \| "speaking"` | Single status label.                          |
+| `canStart`                                 | `boolean`                                                                | True when disconnected.                       |
 
-| Method                                      | Description                                                                                                                                                                             |
-| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `startConversation(target?, startOptions?)` | Starts a public agent, signed URL, or configured default. `startOptions.signed` requests a signed URL from the server route. Rejects nothing by design: failures also populate `error`. |
-| `stopConversation()`                        | Closes the socket, stops the mic, flushes playback, closes contexts, clears timers, and keeps transcripts.                                                                              |
-| `toggleMute()` / `setMuted(muted)`          | Suppresses outgoing chunks without closing the device.                                                                                                                                  |
-| `sendContextualUpdate(text)`                | Adds non-interrupting context for the next agent turn.                                                                                                                                  |
-| `sendUserMessage(text)`                     | Sends a typed user turn.                                                                                                                                                                |
-| `getInputFrequencyData(target?)`            | Reads microphone analyser bins (0–255) for custom visuals.                                                                                                                              |
-| `getOutputFrequencyData(target?)`           | Reads agent playback analyser bins.                                                                                                                                                     |
-| `clearTranscripts()`                        | Clears the local log only.                                                                                                                                                              |
-| `clearError()`                              | Dismisses the current error banner.                                                                                                                                                     |
-| `destroy()`                                 | Idempotent teardown. Called automatically by `useConversation`.                                                                                                                         |
+| Method                                      | Description                                                                                                                                                            |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `startConversation(target?, startOptions?)` | Starts a public agent, signed URL, or configured default. `startOptions.signed` requests a signed URL from the server route. Never rejects; failures populate `error`. |
+| `stopConversation()`                        | Closes the socket, stops the mic, flushes playback, closes contexts, clears timers, and keeps transcripts.                                                             |
+| `toggleMute()` and `setMuted(muted)`        | Suppress outgoing chunks without closing the device.                                                                                                                   |
+| `sendContextualUpdate(text)`                | Adds non-interrupting context for the next agent turn.                                                                                                                 |
+| `sendUserMessage(text)`                     | Sends a typed user turn.                                                                                                                                               |
+| `getInputFrequencyData(target?)`            | Reads microphone analyser bins (0 to 255) for custom visuals.                                                                                                          |
+| `getOutputFrequencyData(target?)`           | Reads agent playback analyser bins.                                                                                                                                    |
+| `clearTranscripts()`                        | Clears the local log only.                                                                                                                                             |
+| `clearError()`                              | Dismisses the current error banner.                                                                                                                                    |
+| `destroy()`                                 | Idempotent teardown. Called automatically by `useConversation`.                                                                                                        |
 
 ### `createConversation(options?)`
 
@@ -251,22 +303,22 @@ import {
 	decodeAudioChunk,
 	parseAudioFormat,
 	resampleLinear
-} from 'svelte-elevenlabs';
+} from 'svelte-elevenlabs/audio';
 ```
 
-- `parseAudioFormat('pcm_16000')` → `{ encoding: 'pcm', sampleRate: 16000, channels: 1 }`
-- `resampleLinear(samples, sourceRate, targetRate)` → new `Float32Array`
-- `encodePcm16Base64(samples)` / `decodePcm16(base64)` — exact wire encoding.
-- `decodeUlaw(bytes)` / `decodeAudioChunk(base64, format)` — G.711 support.
-- `AudioManager` — low-level browser audio graph used by the controller. Create one per session and call `close()` when done.
-- `AudioManagerError` — carries a stable `code` such as `permission-denied`, `insecure-context`, `device-busy`, `decode-failed`, or `closed`.
+- `parseAudioFormat('pcm_16000')` returns `{ encoding: 'pcm', sampleRate: 16000, channels: 1 }`.
+- `resampleLinear(samples, sourceRate, targetRate)` returns a new `Float32Array`.
+- `encodePcm16Base64(samples)` and `decodePcm16(base64)` implement the exact wire encoding.
+- `decodeUlaw(bytes)` and `decodeAudioChunk(base64, format)` add G.711 support.
+- `AudioManager` is the low-level browser audio graph used by the controller. Create one per session and call `close()` when done.
+- `AudioManagerError` carries a stable code such as `permission-denied`, `insecure-context`, `device-busy`, `decode-failed`, or `closed`.
 
 ### Components
 
 ```svelte
 <script lang="ts">
 	import { AudioVisualizer, ConversationWidget, useConversation } from 'svelte-elevenlabs';
-	const conversation = useConversation({ agentId: 'agent_…' });
+	const conversation = useConversation({ agentId: 'agent_...' });
 </script>
 
 <AudioVisualizer {conversation} height={200} />
@@ -280,7 +332,7 @@ import {
 
 `<AudioVisualizer>` reads real analyser data from the controller and draws a dual **you / agent** spectrum with DPR scaling, ResizeObserver sizing, and a reduced-motion path. It does not synthesize audio levels.
 
-`<ConversationWidget>` is self-contained when given an `agentId`; or pass a `controller` you already created. It includes the target field, public/signed start flow, live status, transcript, mute, telemetry, latency history, and clear/dismiss controls. Theme it through CSS custom properties:
+`<ConversationWidget>` is self-contained when given an `agentId`, or it can mirror a `controller` you already created. It includes the target field, public or signed start flow, live status, transcript, mute, telemetry, latency history, and clear or dismiss controls. Theme it through CSS custom properties:
 
 ```css
 .my-line {
@@ -295,64 +347,94 @@ import {
 
 ## Audio and protocol notes
 
-- **Format negotiation is mandatory.** Read `conversation.inputAudioFormat` and `outputAudioFormat`; do not assume 16 kHz. The library supports `pcm_8000` through `pcm_48000` and `ulaw_8000`.
-- **Capture** uses an inline AudioWorklet via a revocable Blob URL. If Worklets are blocked, it falls back to a ScriptProcessor. Chunks are low-pass filtered before decimation, linearly resampled in the main thread, and encoded as mono PCM16 little-endian base64.
+- **Format negotiation is mandatory.** Read `conversation.inputAudioFormat` and `outputAudioFormat`. Do not assume 16 kHz. The library supports `pcm_8000` through `pcm_48000` and `ulaw_8000`.
+- **Capture** uses an inline AudioWorklet through a revocable Blob URL. If Worklets are blocked, it falls back to a ScriptProcessor. Chunks are low-pass filtered before decimation, linearly resampled on the main thread, and encoded as mono PCM16 little-endian base64.
 - **Playback** schedules decoded chunks on one `AudioContext` clock to avoid overlap. Flushing uses a 12 ms exponential gain ramp to prevent clicks.
 - **Interruptions** from the local VAD or the server flush queued audio immediately. Chunks with event ids older than the latest interruption are dropped.
 - **Keep-alives** are answered as `pong` after the server-requested delay, with timers cleared on teardown.
-- **Microphone denial** is mapped to a clear message and an `errorCode` of `permission-denied` (or `insecure-context`). The audio graph is closed; no partial session remains.
-- **SSR safety:** the rune's state is server-safe, but `startConversation` refuses to run outside a browser. Use it inside event handlers.
-- **Cleanup:** sockets, `MediaStream` tracks, AudioWorklet URLs, analyser nodes, both audio contexts, ping timers, signed-URL aborts, scroll timers, and animation frames are all released.
+- **Microphone denial** maps to a clear message and an `errorCode` of `permission-denied` or `insecure-context`. The audio graph is closed and no partial session remains.
+- **SSR safety:** the rune state is server-safe, but `startConversation` refuses to run outside a browser. Use it in event handlers.
+- **Cleanup:** sockets, `MediaStream` tracks, AudioWorklet URLs, analyser nodes, both audio contexts, ping timers, signed URL aborts, scroll timers, and animation frames are released.
+- **Target validation:** the client rejects malformed agent ids and non-WebSocket URLs before it asks for microphone permission.
 
 ## Development
+
+Bun 1.4 or newer is required for the repository scripts. Node 22.17 or newer is supported for running the default server output.
 
 ```sh
 bun install
 bun run dev          # showcase at http://localhost:5173
-bun run check        # strict TypeScript + Svelte diagnostics
+bun run check        # strict TypeScript and Svelte diagnostics
 bun run test         # Vitest
-bun run build        # adapter-bun app build + package prepack
-bun run prepack      # svelte-package + publint
-bun run lint         # Prettier + ESLint
+bun run build        # Node app build, package prepack, and publint
+bun run build:pages  # static GitHub Pages build
+bun run build:bun    # optional Bun server build
+bun run prepack      # package-only build
+bun run lint         # Prettier and ESLint
 bun run format
 ```
 
-The project uses **SvelteKit 3**, whose Vite configuration lives in `vite.config.ts`. The showcase is deployed with `@sveltejs/adapter-bun`; set `ELEVENLABS_API_KEY` in the Bun process environment for the signed URL route.
+The project uses SvelteKit 3, whose Vite configuration lives in `vite.config.ts`. There is no `svelte.config.js`. Route-level prerendering is enabled only for the Pages mode in `src/routes/+layout.ts`.
+
+The Pages workflow is the only CI. It installs with a frozen lockfile, builds the static demo, and deploys the artifact.
 
 ### Package layout
 
 ```text
 src/
-  env.ts                          # explicit public demo env (SvelteKit 3)
+  env.ts                          # explicit public demo env for SvelteKit 3
   lib/
     index.ts                      # public export surface
-    types/index.ts                # strict protocol + public API types
+    types/index.ts                # strict protocol and public API types
     runes/useConversation.svelte.ts
     audio/audioManager.ts
     components/AudioVisualizer.svelte
     components/ConversationWidget.svelte
   routes/
+    +layout.ts                    # prerender only in Pages mode
     +page.svelte                  # live signal-console showcase
     api/signed-url/+server.ts     # server-only signed URL exchange
 ```
+
+## Publishing
+
+The package version is `0.2.0`. `prepack` runs `svelte-kit sync`, `svelte-package`, and `publint`, so `dist` is rebuilt from source before every publish.
+
+```sh
+bun run prepack
+npm pack --dry-run
+npm publish --access public
+```
+
+`publishConfig.access` is already `public`. The published files are limited to `dist`, and the package exposes the root entry plus the `audio`, `types`, and `package.json` subpaths.
 
 ## Security checklist
 
 1. Keep `ELEVENLABS_API_KEY` server-side. Never use a `PUBLIC_` prefix for it.
 2. Require an authenticated session or rate limiting on `/api/signed-url` in production.
 3. Prefer signed URLs for non-public agents.
-4. Serve over HTTPS (or localhost) so microphone access is available.
-5. The library logs actionable errors to the browser console; it does not log signed URLs, tokens, or transcript text. Your own `onTranscript` callback is opt-in.
+4. Serve over HTTPS or localhost so microphone access is available.
+5. The library logs actionable errors; it does not log signed URLs, tokens, or transcript text. `onTranscript` is opt-in.
+6. Build GitHub Pages with `PUBLIC_HOSTING_MODE=static`. The signed URL route is not part of that artifact.
+7. Treat public agent ids as public. Do not put private agent configuration in the static build.
 
 ## Scope and limitations
 
-This project is community-maintained and not an official ElevenLabs SDK. The wire protocol can change independently; the parser ignores unknown events rather than crashing. Audio runs only in the browser. The included server route is a starter implementation, not a multi-tenant authorization system.
+This project is community-maintained and is not an official ElevenLabs SDK. The wire protocol can change independently. The parser ignores unknown events instead of crashing. Audio runs only in the browser. The included server route is a starter implementation, not a multi-tenant authorization system.
 
-If you need server-side audio processing, telephony, or a managed token broker, add that layer around this client rather than exposing an API key to it.
+If you need server-side audio processing, telephony, or a managed token broker, add that layer around this client instead of exposing an API key to it.
+
+## Changelog
+
+See [CHANGELOG.md](https://github.com/GABRYCA/svelte-elevenlabs/blob/main/CHANGELOG.md) for release notes and upcoming changes. The changelog follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and releases follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## Author
+
+Created and maintained by [GABRYCA](https://github.com/GABRYCA).
 
 ## License
 
-[MIT](LICENSE) © 2026 svelte-elevenlabs contributors.
+[MIT](LICENSE). Copyright 2026 GABRYCA and svelte-elevenlabs contributors.
 
 ---
 

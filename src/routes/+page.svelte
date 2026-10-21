@@ -1,9 +1,14 @@
 <script lang="ts">
-	import { PUBLIC_ELEVENLABS_AGENT_ID } from '$app/env/public';
+	import { PUBLIC_ELEVENLABS_AGENT_ID, PUBLIC_HOSTING_MODE } from '$app/env/public';
+	import { onDestroy, onMount } from 'svelte';
 	import { AudioManager, AudioVisualizer, useConversation } from '#lib';
 
 	const configuredAgentId = (PUBLIC_ELEVENLABS_AGENT_ID ?? '').trim();
+	const staticHosting = PUBLIC_HOSTING_MODE === 'static';
 	const installCommand = 'bun add svelte-elevenlabs';
+	const version = '0.2.0';
+	const legalDisclaimer =
+		'This is an independent community project. Not affiliated with or endorsed by Eleven Labs Inc.';
 
 	const conversation = useConversation({
 		agentId: configuredAgentId,
@@ -11,10 +16,9 @@
 	});
 
 	let agentId = $state(configuredAgentId);
-	let authMode = $state<'signed' | 'public'>('signed');
+	let authMode = $state<'signed' | 'public'>(staticHosting ? 'public' : 'signed');
 	let elapsed = $state(0);
 	// Browser capability can only be probed after hydration; deriving during SSR mismatches markup.
-	// eslint-disable-next-line svelte/prefer-writable-derived
 	let audioSupport = $state<'checking' | 'supported' | 'unsupported'>('checking');
 	let transcriptEl = $state<HTMLDivElement | null>(null);
 	let pinnedToBottom = true;
@@ -59,10 +63,13 @@
 		if (conversation.status === 'connected') {
 			return conversation.isMuted
 				? 'Your microphone is muted. The agent can still speak; unmute to reply.'
-				: 'Your microphone is live. Start speaking at any time — barge-in flushes agent audio.';
+				: 'Your microphone is live. Start speaking at any time. Barge-in flushes agent audio.';
 		}
 		if (conversation.status === 'connecting') {
 			return 'Hold the line. Microphone, signed URL, and WebSocket metadata are being prepared.';
+		}
+		if (staticHosting) {
+			return 'This static demo uses public agent ids or a signed URL you already have. The server exchange runs in the local build.';
 		}
 		if (authMode === 'signed') {
 			return 'The server exchanges the agent id for a short-lived signed URL. The API key never enters the browser.';
@@ -71,7 +78,7 @@
 	});
 	const elapsedLabel = $derived(formatClock(elapsed));
 	const latencyLabel = $derived(
-		conversation.latency === null ? '—' : `${conversation.latency.toLocaleString()} ms`
+		conversation.latency === null ? '-' : `${conversation.latency.toLocaleString()} ms`
 	);
 	const formatIn = $derived(formatFormat(conversation.inputAudioFormat));
 	const formatOut = $derived(formatFormat(conversation.outputAudioFormat));
@@ -90,7 +97,7 @@
 		conversation.status === 'disconnected' && (!agentId.trim() || audioSupport === 'unsupported')
 	);
 
-	$effect(() => {
+	onMount(() => {
 		audioSupport = AudioManager.isSupported() ? 'supported' : 'unsupported';
 	});
 
@@ -118,10 +125,8 @@
 		transcriptEl.scrollTop = transcriptEl.scrollHeight;
 	});
 
-	$effect(() => {
-		return () => {
-			if (copyTimer) clearTimeout(copyTimer);
-		};
+	onDestroy(() => {
+		if (copyTimer) clearTimeout(copyTimer);
 	});
 
 	function startOrStop(): void {
@@ -134,7 +139,9 @@
 		if (!target) return;
 
 		pinnedToBottom = true;
-		void conversation.startConversation(target, { signed: authMode === 'signed' });
+		void conversation.startConversation(target, {
+			signed: !staticHosting && authMode === 'signed'
+		});
 	}
 
 	function handleLogScroll(): void {
@@ -172,7 +179,7 @@
 	}
 
 	function formatFormat(format: string | null): string {
-		if (!format) return '—';
+		if (!format) return '-';
 		return format.replace('pcm_', '').replace('ulaw_', 'µ-law ');
 	}
 
@@ -184,7 +191,7 @@
 	}
 
 	function shortId(id: string | null): string {
-		if (!id) return '—';
+		if (!id) return '-';
 		return id.length > 13 ? `${id.slice(0, 9)}…${id.slice(-3)}` : id;
 	}
 
@@ -203,7 +210,7 @@
 {/snippet}
 
 <svelte:head>
-	<title>svelte-elevenlabs — give your interface a voice</title>
+	<title>svelte-elevenlabs: give your interface a voice</title>
 	<meta
 		name="description"
 		content="An independent Svelte 5 library and starter kit for ElevenLabs Conversational AI, with signed URLs, low-latency audio, and zero-leak cleanup."
@@ -229,8 +236,8 @@
 		</nav>
 
 		<div class="masthead__meta">
-			<span class="masthead__version">v0.1.0</span>
-			<span class="masthead__flag">Community build</span>
+			<span class="masthead__version">v{version}</span>
+			<span class="masthead__flag">{staticHosting ? 'Static demo' : 'Community build'}</span>
 		</div>
 	</header>
 
@@ -267,7 +274,7 @@
 				<ul class="hero__facts" aria-label="Library highlights">
 					<li><strong>Svelte 5</strong><span>runes · SSR-safe</span></li>
 					<li><strong>Signed URLs</strong><span>key stays server-side</span></li>
-					<li><strong>16–24 kHz</strong><span>PCM · AudioWorklet</span></li>
+					<li><strong>16 to 24 kHz</strong><span>PCM · AudioWorklet</span></li>
 				</ul>
 			</div>
 
@@ -277,7 +284,7 @@
 
 				<div class="spec__top">
 					<span>Unit spec</span>
-					<span>SE—01</span>
+					<span>SE-01</span>
 				</div>
 
 				<div class="spec__wave" aria-hidden="true">
@@ -289,7 +296,7 @@
 				<dl class="spec__list">
 					<div>
 						<dt>Runtime</dt>
-						<dd>Bun 1.4+</dd>
+						<dd>Bun 1.4+ / Node 22.17+</dd>
 					</div>
 					<div>
 						<dt>Reactivity</dt>
@@ -315,7 +322,7 @@
 
 				<div class="spec__footer">
 					<span>Status</span>
-					<strong>0.1 / experimental</strong>
+					<strong>{version} / preview</strong>
 				</div>
 
 				<p class="spec__note">
@@ -331,7 +338,7 @@
 				<span>01 / LOW LATENCY</span>
 				<span>02 / BARGE-IN READY</span>
 				<span>03 / ZERO LEAKS</span>
-				<span>04 / BUN + SVELTEKIT</span>
+				<span>04 / BUN AND NODE</span>
 				<span class="data-strip__badge">MIT</span>
 			</div>
 		</div>
@@ -341,8 +348,13 @@
 				<p class="section-head__tag"><span>01</span> Live console</p>
 				<h2 id="console-title">Talk to the machine.</h2>
 				<p class="section-head__copy">
-					Point the console at a public agent id or let the server mint a signed URL. Your
-					microphone opens only after you press start.
+					{#if staticHosting}
+						This static demo connects with public agent ids. Paste one, press start, and speak. The
+						full local build adds the signed URL server route.
+					{:else}
+						Point the console at a public agent id or let the server mint a signed URL. Your
+						microphone opens only after you press start.
+					{/if}
 				</p>
 			</header>
 
@@ -350,7 +362,7 @@
 				<div class="console__titlebar">
 					<div class="console__brandline">
 						<span class="console__lamp" data-tone={statusTone} aria-hidden="true"></span>
-						<span>SEL—01 / Signal console</span>
+						<span>SEL-01 / Signal console</span>
 					</div>
 					<div class="console__channel">
 						<span>CH 01</span>
@@ -451,12 +463,22 @@
 							<fieldset class="auth" disabled={active}>
 								<legend>Credential route</legend>
 								<div class="auth__options">
-									<label class="auth__option" class:is-active={authMode === 'signed'}>
-										<input type="radio" name="auth-mode" value="signed" bind:group={authMode} />
+									<label
+										class="auth__option"
+										class:is-active={authMode === 'signed'}
+										class:is-disabled={staticHosting}
+									>
+										<input
+											type="radio"
+											name="auth-mode"
+											value="signed"
+											bind:group={authMode}
+											disabled={active || staticHosting}
+										/>
 										<span class="auth__radio" aria-hidden="true"></span>
 										<span>
 											<strong>Signed URL</strong>
-											<small>server route</small>
+											<small>{staticHosting ? 'local build only' : 'server route'}</small>
 										</span>
 									</label>
 									<label class="auth__option" class:is-active={authMode === 'public'}>
@@ -631,7 +653,7 @@
 					<span>Web Audio / AudioWorklet</span>
 					<span class="console__footer-signal" data-on={connected}>PCM16 / STREAM</span>
 					<span class="console__footer-spacer"></span>
-					<span>SEL—01</span>
+					<span>SEL-01</span>
 					<span class="console__footer-dim">No client key</span>
 				</div>
 			</div>
@@ -782,11 +804,12 @@
 		<section id="install" class="install" aria-labelledby="install-title">
 			<div class="page-wrap">
 				<header class="section-head section-head--dark">
-					<p class="section-head__tag"><span>03</span> Install &amp; start</p>
+					<p class="section-head__tag"><span>03</span> Install and start</p>
 					<h2 id="install-title">Five lines to<br />a first sentence.</h2>
 					<p class="section-head__copy">
-						Add the package, give the rune an agent, and let Svelte handle the rest. The demo below
-						uses signed mode; it needs one server secret.
+						Add the package, give the rune an agent, and let Svelte handle the rest. The static demo
+						uses public agent ids. The local full build adds signed URL exchange with one server
+						secret.
 					</p>
 				</header>
 
@@ -795,7 +818,7 @@
 						<div class="install__step">
 							<div class="install__step-head">
 								<span>01</span>
-								<span>Install with Bun 1.4+</span>
+								<span>Install the package</span>
 							</div>
 							<div class="command">
 								<code>{installCommand}</code>
@@ -808,8 +831,8 @@
 								</button>
 							</div>
 							<p>
-								Peer dependency: Svelte 5. The library is ESM-only and publishes its TypeScript
-								surface.
+								Peer dependency: Svelte 5. The library is ESM-only, publishes its TypeScript
+								surface, and builds with Node 22.17+ or Bun 1.4+.
 							</p>
 						</div>
 
@@ -819,10 +842,10 @@
 								<span>Keep the secret on the server</span>
 							</div>
 							<pre class="env"><code
-									><span class="code-comment"># .env — never expose this through PUBLIC_*</span>
+									><span class="code-comment"># .env: never expose this through PUBLIC_*</span>
 ELEVENLABS_API_KEY=your_key_here
 <span class="code-comment"># optional demo prefill</span>
-PUBLIC_ELEVENLABS_AGENT_ID=agent_your_id</code
+PUBLIC_ELEVENLABS_AGENT_ID=agent_examplePublicId</code
 								></pre>
 							<p>
 								The included SvelteKit route reads <code>process.env</code> and returns only a short-lived
@@ -921,16 +944,16 @@ bun run dev</code
 						</div>
 						<div>
 							<dt><code>volume</code></dt>
-							<dd><span class="type">number</span> — combined level, 0–1.</dd>
+							<dd><span class="type">number</span>: combined level, 0 to 1.</dd>
 						</div>
 						<div>
 							<dt><code>transcripts</code></dt>
-							<dd><span class="type">TranscriptMessage[]</span> — stable streaming entries.</dd>
+							<dd><span class="type">TranscriptMessage[]</span>: stable streaming entries.</dd>
 						</div>
 						<div>
 							<dt><code>error</code></dt>
 							<dd>
-								<span class="type">string | null</span> — safe to render; code in
+								<span class="type">string | null</span>: safe to render; code in
 								<code>errorCode</code>.
 							</dd>
 						</div>
@@ -939,7 +962,7 @@ bun run dev</code
 
 				<div class="api__panel api__panel--methods">
 					<div class="api__panel-head">
-						<span>Methods &amp; helpers</span>
+						<span>Methods and helpers</span>
 						<span>Browser lifecycle</span>
 					</div>
 					<div class="method-list">
@@ -1006,14 +1029,12 @@ bun run dev</code
 						public Conversational AI protocol, documents its failure modes, and favors a clear error
 						over a silent dead line.
 					</p>
-					<p class="community__disclaimer">
-						This is an independent community project. Not affiliated with or endorsed by Eleven Labs
-						Inc.
-					</p>
+					<p class="community__disclaimer">{legalDisclaimer}</p>
 					<div class="community__meta">
 						<span>MIT licensed</span>
-						<span>Built with Bun 1.4</span>
+						<span>Runs on Bun and Node</span>
 						<span>Issues welcome</span>
+						<a href="https://github.com/GABRYCA" rel="noreferrer">Author: GABRYCA ↗</a>
 					</div>
 				</div>
 			</div>
@@ -1034,6 +1055,7 @@ bun run dev</code
 				<a href="#architecture">Architecture</a>
 				<a href="#install">Install</a>
 				<a href="#api">API</a>
+				<a href="https://github.com/GABRYCA/svelte-elevenlabs" rel="noreferrer">GitHub ↗</a>
 				<a href="https://elevenlabs.io/docs/conversational-ai/overview" rel="noreferrer">
 					ElevenLabs docs ↗
 				</a>
@@ -1042,15 +1064,12 @@ bun run dev</code
 
 		<div class="page-wrap footer__disclaimer">
 			<span class="footer__mark" aria-hidden="true">!</span>
-			<p>
-				This is an independent community project. Not affiliated with or endorsed by Eleven Labs
-				Inc.
-			</p>
+			<p>{legalDisclaimer}</p>
 		</div>
 
 		<div class="page-wrap footer__bottom">
-			<span>© 2026 svelte-elevenlabs contributors</span>
-			<span>Svelte 5 · SvelteKit · Bun · MIT</span>
+			<span>© 2026 GABRYCA and contributors</span>
+			<span>Svelte 5 · SvelteKit · Bun and Node · MIT</span>
 			<a href="#top">Back to top ↑</a>
 		</div>
 	</footer>
@@ -2001,6 +2020,11 @@ bun run dev</code
 	.auth__option.is-active {
 		background: rgba(205, 246, 108, 0.065);
 		box-shadow: inset 0 -2px 0 var(--agent);
+	}
+
+	.auth__option.is-disabled {
+		cursor: not-allowed;
+		opacity: 0.55;
 	}
 
 	.auth__option input {
@@ -3416,12 +3440,25 @@ bun run dev</code
 		gap: 0.38rem;
 	}
 
-	.community__meta span::before {
+	.community__meta span::before,
+	.community__meta a::before {
 		width: 4px;
 		height: 4px;
 		border-radius: 50%;
 		background: var(--signal-deep);
 		content: '';
+	}
+
+	.community__meta a {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.38rem;
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.community__meta a:hover {
+		color: var(--ink);
 	}
 
 	.footer {

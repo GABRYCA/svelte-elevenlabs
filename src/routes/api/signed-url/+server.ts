@@ -15,7 +15,7 @@ export const prerender = false;
  * Exchange a public agent id for a short-lived ElevenLabs WebSocket URL.
  *
  * Query parameters:
- * - `agent_id` — a public `agent_…` or `seng_…` id.
+ * - `agent_id`: a public `agent_…` or `seng_…` id.
  *
  * Success response: `{ signed_url: string }`
  * Error response: `{ error: { message: string } }`
@@ -49,7 +49,7 @@ export const GET: RequestHandler = async ({ url, fetch, request, setHeaders }) =
 	/*
 	 * Read the secret from the server environment only. On Bun the value is
 	 * normally loaded from `.env` by the runtime; on Node it comes from the
-	 * process environment. Never expose this through $env/dynamic/public.
+	 * process environment. Never expose this through a PUBLIC_* variable.
 	 */
 	const apiKey = process.env.ELEVENLABS_API_KEY?.trim() ?? '';
 	if (!apiKey) {

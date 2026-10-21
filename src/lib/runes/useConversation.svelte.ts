@@ -1,6 +1,5 @@
 import { BROWSER } from 'esm-env';
-import { SvelteMap, SvelteSet, SvelteURL } from 'svelte/reactivity';
-import { AudioManager, AudioManagerError } from '../audio/audioManager.js';
+import { AudioManager, AudioManagerError, parseAudioFormat } from '../audio/audioManager.js';
 import {
 	ConversationError,
 	type AudioFormatId,
@@ -22,6 +21,14 @@ const DEFAULT_ORIGIN = 'wss://api.elevenlabs.io';
 const DEFAULT_SIGNED_URL_ENDPOINT = '/api/signed-url';
 const HANDSHAKE_TIMEOUT_MS = 15_000;
 const MAX_LATENCY_HISTORY = 12;
+const AGENT_ID_PATTERN = /^(agent|seng)_[A-Za-z0-9]+$/;
+
+/** A validated start target before any network or microphone work begins. */
+interface ConversationTarget {
+	value: string;
+	signed: boolean;
+	websocket: boolean;
+}
 
 const KNOWN_SERVER_EVENTS = new Set<ServerEvent['type']>([
 	'conversation_initiation_metadata',
@@ -121,12 +128,14 @@ export class ConversationController {
 	private intentionalClose = false;
 	private destroyed = false;
 	private handshakeTimer: ReturnType<typeof setTimeout> | null = null;
-	private pingTimers = new SvelteSet<ReturnType<typeof setTimeout>>();
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- Internal timers are not rendered.
+	private pingTimers = new Set<ReturnType<typeof setTimeout>>();
 	private signedUrlAbort: AbortController | null = null;
 	private latencyStartedAt: number | null = null;
 	private lastInterruptionEventId = Number.NEGATIVE_INFINITY;
 	private lastInterruptionAt = Number.NEGATIVE_INFINITY;
-	private agentStreamIds = new SvelteMap<string, string>();
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- Internal protocol lookup is not rendered.
+	private agentStreamIds = new Map<string, string>();
 	private lastErrorKey = '';
 	private lastErrorAt = 0;
 	private pageHideHandler = (): void => this.stopConversation();
@@ -151,9 +160,10 @@ export class ConversationController {
 	 * or `undefined` to use the configured default.
 	 * @param startOptions - Set `signed: true` to exchange a public agent id for
 	 * a signed URL through `signedUrlEndpoint`.
-	 * @returns A promise that resolves once metadata is negotiated and the
-	 * microphone is streaming. Rejections are also reflected in `error`, so
-	 * callers may safely use `void conversation.startConversation(...)`.
+	 * @returns A promise that resolves after metadata negotiation or after a
+	 * start failure. It never rejects; failures are published through `error`,
+	 * `errorCode`, and `onError`, so `void conversation.startConversation(...)`
+	 * is safe without an extra catch.
 	 */
 	async startConversation(
 		agentIdOrSignedUrl?: string,
@@ -176,6 +186,18 @@ export class ConversationController {
 		}
 		if (this.status !== 'disconnected') {
 			this.debugLog('session:ignored', 'startConversation() called while a session is active.');
+			return;
+		}
+
+		let target: ConversationTarget;
+		try {
+			target = this.resolveTarget(agentIdOrSignedUrl, startOptions);
+		} catch (cause) {
+			this.fail(
+				cause instanceof ConversationError
+					? cause
+					: new ConversationError('invalid-target', 'The conversation target is not valid.', cause)
+			);
 			return;
 		}
 
@@ -226,7 +248,7 @@ export class ConversationController {
 				return;
 			}
 
-			const url = await this.resolveUrl(agentIdOrSignedUrl, startOptions);
+			const url = await this.resolveUrl(target);
 			if (!this.isCurrent(token)) {
 				await audio.close();
 				return;
@@ -369,7 +391,7 @@ export class ConversationController {
 	/**
 	 * Read the current microphone frequency bins for a canvas or CSS meter.
 	 *
-	 * The returned values are bytes from an `AnalyserNode` (0–255) and are all
+	 * The returned values are bytes from an `AnalyserNode` (0 to 255) and are all
 	 * zero when the microphone is not active. Pass a reusable buffer to avoid
 	 * allocating on every animation frame; it must have at least 512 entries.
 	 *
@@ -387,7 +409,7 @@ export class ConversationController {
 	/**
 	 * Read the current agent playback frequency bins for a canvas or CSS meter.
 	 *
-	 * The returned values are bytes from an `AnalyserNode` (0–255) and are all
+	 * The returned values are bytes from an `AnalyserNode` (0 to 255) and are all
 	 * zero when no audio graph is active.
 	 *
 	 * @param target - Optional reusable buffer at least 512 entries long.
@@ -412,11 +434,16 @@ export class ConversationController {
 		this.stopConversation();
 	}
 
-	/** Resolve an agent id or signed URL into a WebSocket URL. */
-	private async resolveUrl(
+	/**
+	 * Validate a start target before microphone access is requested.
+	 *
+	 * Normalizing URLs here keeps obvious configuration mistakes synchronous
+	 * and avoids a permission prompt for a session that cannot connect.
+	 */
+	private resolveTarget(
 		target: string | undefined,
 		startOptions: StartConversationOptions
-	): Promise<string> {
+	): ConversationTarget {
 		const chosen = target?.trim() || this.options.signedUrl?.trim() || this.options.agentId?.trim();
 		if (!chosen) {
 			throw new ConversationError(
@@ -426,22 +453,34 @@ export class ConversationController {
 		}
 
 		if (/^(wss?|https?):\/\//i.test(chosen)) {
-			return normalizeWebSocketUrl(chosen);
+			return {
+				value: normalizeWebSocketUrl(chosen),
+				signed: false,
+				websocket: true
+			};
 		}
 
-		if (!/^(agent|seng)_[A-Za-z0-9]+$/.test(chosen)) {
+		if (!AGENT_ID_PATTERN.test(chosen)) {
 			throw new ConversationError(
 				'invalid-target',
 				'That does not look like an ElevenLabs agent ID. Agent IDs start with "agent_" (or "seng_" for speech engines).'
 			);
 		}
 
-		if (startOptions.signed) {
-			return this.fetchSignedUrl(chosen);
-		}
+		return {
+			value: chosen,
+			signed: startOptions.signed === true,
+			websocket: false
+		};
+	}
+
+	/** Turn a validated target into a WebSocket URL. */
+	private async resolveUrl(target: ConversationTarget): Promise<string> {
+		if (target.websocket) return target.value;
+		if (target.signed) return this.fetchSignedUrl(target.value);
 
 		const origin = (this.options.origin ?? DEFAULT_ORIGIN).replace(/\/+$/, '');
-		return `${origin}/v1/convai/conversation?agent_id=${encodeURIComponent(chosen)}`;
+		return `${origin}/v1/convai/conversation?agent_id=${encodeURIComponent(target.value)}`;
 	}
 
 	/** Exchange an agent id for a signed URL through the app server. */
@@ -451,7 +490,8 @@ export class ConversationController {
 		}
 
 		const endpoint = this.options.signedUrlEndpoint ?? DEFAULT_SIGNED_URL_ENDPOINT;
-		const url = new SvelteURL(endpoint, window.location.href);
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- This URL is never rendered.
+		const url = new URL(endpoint, window.location.href);
 		if (url.protocol !== 'http:' && url.protocol !== 'https:') {
 			throw new ConversationError(
 				'signed-url-failed',
@@ -665,8 +705,8 @@ export class ConversationController {
 			inputFormat = metadata.user_input_audio_format ?? 'pcm_16000';
 			outputFormat = metadata.agent_output_audio_format ?? 'pcm_16000';
 			// Validate early so an unsupported format fails with a clear message.
-			parseFormatId(inputFormat);
-			parseFormatId(outputFormat);
+			parseAudioFormat(inputFormat);
+			parseAudioFormat(outputFormat);
 		} catch (cause) {
 			throw new ConversationError(
 				'protocol-error',
@@ -1310,9 +1350,10 @@ function extractErrorMessage(body: unknown): string | null {
 
 /** Normalize http(s) URLs to ws(s) and reject other schemes. */
 function normalizeWebSocketUrl(value: string): string {
-	let url: SvelteURL;
+	let url: URL;
 	try {
-		url = new SvelteURL(value);
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- Pure URL validation.
+		url = new URL(value);
 	} catch (cause) {
 		throw new ConversationError(
 			'invalid-target',
@@ -1382,16 +1423,6 @@ function isAbortError(value: unknown): boolean {
 		'name' in value &&
 		(value as { name: unknown }).name === 'AbortError'
 	);
-}
-
-/** Validate a format id without importing the audio manager into consumers. */
-function parseFormatId(value: string): void {
-	if (!/^(pcm|ulaw)_\d{4,5}$/.test(value)) {
-		throw new ConversationError(
-			'protocol-error',
-			`The agent requested an unsupported audio format: ${value}.`
-		);
-	}
 }
 
 /** Round levels to three decimals to reduce needless reactive updates. */

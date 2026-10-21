@@ -12,5 +12,10 @@ export const variables = defineEnvVars({
 		public: true,
 		description: 'Optional public ElevenLabs agent id used to prefill the demo console.',
 		schema: (value) => (value ?? '').trim()
+	},
+	PUBLIC_HOSTING_MODE: {
+		public: true,
+		description: 'Use "static" on the GitHub Pages build to hide the server-only signed URL flow.',
+		schema: (value) => (value?.trim() === 'static' ? 'static' : 'server')
 	}
 });

@@ -69,7 +69,7 @@ export interface AudioManagerOptions {
 	onLocalInterruption?: () => void;
 	/** Called for audio-layer failures that do not tear down the socket. */
 	onError?: (error: AudioManagerError) => void;
-	/** Microphone chunk duration in milliseconds. Clamped to 50–250. Defaults to 100. */
+	/** Microphone chunk duration in milliseconds. Clamped to 50 to 250. Defaults to 100. */
 	inputChunkDurationMs?: number;
 	/** Flush playback when the local VAD detects speech. Defaults to `true`. */
 	interruptOnUserSpeech?: boolean;
@@ -88,6 +88,18 @@ const DEFAULT_SAMPLE_RATE = 16_000;
 const DEFAULT_CHUNK_MS = 100;
 const VAD_ATTACK_FRAMES = 2;
 const VAD_RELEASE_FRAMES = 8;
+
+/** Stop every track on a media stream, even after the manager was closed. */
+function stopStream(stream: MediaStream | null): void {
+	if (!stream) return;
+	for (const track of stream.getTracks()) {
+		try {
+			track.stop();
+		} catch {
+			// The track may already have ended.
+		}
+	}
+}
 
 /**
  * Inline AudioWorklet source.
@@ -164,7 +176,13 @@ export function parseAudioFormat(format: AudioFormatId | string): AudioFormat {
 	if (!Number.isFinite(sampleRate) || sampleRate < 8_000 || sampleRate > 48_000) {
 		throw new AudioManagerError(
 			'unsupported-format',
-			`Unsupported sample rate in "${format}". Supported rates are 8000–48000 Hz.`
+			`Unsupported sample rate in "${format}". Supported rates are 8000 to 48000 Hz.`
+		);
+	}
+	if (match[1] === 'ulaw' && sampleRate !== 8_000) {
+		throw new AudioManagerError(
+			'unsupported-format',
+			`Unsupported format "${format}". G.711 µ-law audio is only valid at 8000 Hz.`
 		);
 	}
 
@@ -461,8 +479,12 @@ export class AudioManager {
 			);
 		}
 
+		let stream: MediaStream;
+		let inputContext: AudioContext | null = null;
+		let outputContext: AudioContext | null = null;
+
 		try {
-			this.#inputStream = await navigator.mediaDevices.getUserMedia({
+			stream = await navigator.mediaDevices.getUserMedia({
 				audio: {
 					echoCancellation: true,
 					noiseSuppression: true,
@@ -473,17 +495,47 @@ export class AudioManager {
 				video: false
 			});
 
-			this.#inputContext = this.#createInputContext();
-			this.#inputActualRate = this.#inputContext.sampleRate;
-			this.#outputContext = new AudioContext({ latencyHint: 'interactive' });
+			/*
+			 * stopConversation() can close the manager while the permission
+			 * prompt is open. Stop the fresh stream instead of installing it on
+			 * an already disposed graph.
+			 */
+			if (this.#closed) {
+				stopStream(stream);
+				throw new AudioManagerError(
+					'closed',
+					'The conversation ended before microphone access was granted.'
+				);
+			}
+
+			try {
+				inputContext = this.#createInputContext();
+				outputContext = new AudioContext({ latencyHint: 'interactive' });
+			} catch (cause) {
+				stopStream(stream);
+				await Promise.all([this.#closeContext(inputContext), this.#closeContext(outputContext)]);
+				throw new AudioManagerError(
+					'context-failed',
+					'Could not create the Web Audio contexts required for the conversation.',
+					cause
+				);
+			}
+
+			this.#inputStream = stream;
+			this.#inputContext = inputContext;
+			this.#inputActualRate = inputContext.sampleRate;
+			this.#outputContext = outputContext;
 			this.#createOutputGraph();
 			this.#prepared = true;
 
 			await this.#resumeContexts();
+			if (this.#closed) {
+				throw new AudioManagerError('closed', 'The conversation ended while audio was starting.');
+			}
 			this.#startMonitor();
 		} catch (cause) {
 			await this.close();
-			throw this.#mapGetUserMediaError(cause);
+			throw cause instanceof AudioManagerError ? cause : this.#mapGetUserMediaError(cause);
 		}
 	}
 
@@ -501,54 +553,89 @@ export class AudioManager {
 		if (!this.#prepared || !this.#inputContext || !this.#inputStream) {
 			await this.prepare();
 		}
+		if (this.#closed) {
+			throw new AudioManagerError(
+				'closed',
+				'The conversation ended while the microphone was starting.'
+			);
+		}
 		if (!this.#inputContext || !this.#inputStream) {
 			throw new AudioManagerError('context-failed', 'The microphone audio graph is not available.');
 		}
+
+		const parsedFormat = typeof format === 'string' ? parseAudioFormat(format) : format;
 		if (this.#inputStarted) {
-			this.#inputFormat = typeof format === 'string' ? parseAudioFormat(format) : format;
+			this.#inputFormat = parsedFormat;
 			return;
 		}
 
-		this.#inputFormat = typeof format === 'string' ? parseAudioFormat(format) : format;
+		this.#inputFormat = parsedFormat;
 		this.#inputActualRate = this.#inputContext.sampleRate;
 
+		const context = this.#inputContext;
+		const stream = this.#inputStream;
+		let source: MediaStreamAudioSourceNode | null = null;
+		let analyser: AnalyserNode | null = null;
+		let filter: BiquadFilterNode | null = null;
+		let sink: GainNode | null = null;
+		let captureNode: AudioWorkletNode | ScriptProcessorNode | null = null;
+
 		try {
-			const source = this.#inputContext.createMediaStreamSource(this.#inputStream);
-			const analyser = this.#inputContext.createAnalyser();
+			source = context.createMediaStreamSource(stream);
+			analyser = context.createAnalyser();
 			analyser.fftSize = 1024;
 			analyser.smoothingTimeConstant = 0.78;
 			analyser.minDecibels = -90;
 			analyser.maxDecibels = -10;
 
-			const filter = this.#inputContext.createBiquadFilter();
+			filter = context.createBiquadFilter();
 			filter.type = 'lowpass';
 			filter.Q.value = 0.707;
-			// Guard against aliasing only when the browser could not grant 16 kHz.
+			// Guard against aliasing only when the browser could not grant the requested rate.
 			filter.frequency.value =
-				this.#inputActualRate > this.#inputFormat.sampleRate
-					? Math.min(this.#inputFormat.sampleRate * 0.45, this.#inputActualRate * 0.45)
+				this.#inputActualRate > parsedFormat.sampleRate
+					? Math.min(parsedFormat.sampleRate * 0.45, this.#inputActualRate * 0.45)
 					: Math.min(this.#inputActualRate * 0.45, 8_000);
 
-			const sink = this.#inputContext.createGain();
+			sink = context.createGain();
 			sink.gain.value = 0;
 
 			source.connect(filter);
 			filter.connect(analyser);
 
-			const capture = await this.#createCaptureNode(this.#inputContext);
-			analyser.connect(capture.node);
-			capture.node.connect(sink);
-			sink.connect(this.#inputContext.destination);
+			const capture = await this.#createCaptureNode(context);
+			captureNode = capture.node;
+
+			if (this.#closed) {
+				throw new AudioManagerError(
+					'closed',
+					'The conversation ended while the microphone processor was loading.'
+				);
+			}
+
+			analyser.connect(captureNode);
+			captureNode.connect(sink);
+			sink.connect(context.destination);
+
+			await context.resume();
+			if (this.#closed) {
+				throw new AudioManagerError(
+					'closed',
+					'The conversation ended while the microphone was starting.'
+				);
+			}
 
 			this.#inputSource = source;
 			this.#inputFilter = filter;
 			this.#inputAnalyser = analyser;
-			this.#inputCapture = capture.node;
+			this.#inputCapture = captureNode;
 			this.#inputSink = sink;
 			this.#inputStarted = true;
-
-			await this.#inputContext.resume();
 		} catch (cause) {
+			for (const node of [source, filter, analyser, captureNode, sink]) {
+				this.#disconnectNode(node);
+			}
+
 			const error =
 				cause instanceof AudioManagerError
 					? cause
@@ -801,8 +888,10 @@ export class AudioManager {
 		this.#outputActive = false;
 		this.#userSpeaking = false;
 
-		for (const track of this.#inputStream?.getTracks() ?? []) {
-			track.stop();
+		stopStream(this.#inputStream);
+
+		if (typeof AudioWorkletNode !== 'undefined' && this.#inputCapture instanceof AudioWorkletNode) {
+			this.#inputCapture.port.onmessage = null;
 		}
 
 		this.#disconnectNode(this.#inputSource);
@@ -813,23 +902,27 @@ export class AudioManager {
 		this.#disconnectNode(this.#outputGain);
 		this.#disconnectNode(this.#outputAnalyser);
 
+		this.#inputSource = null;
+		this.#inputFilter = null;
+		this.#inputAnalyser = null;
+		this.#inputCapture = null;
+		this.#inputSink = null;
+		this.#outputGain = null;
+		this.#outputAnalyser = null;
+
 		if (this.#inputWorkletUrl) {
 			URL.revokeObjectURL(this.#inputWorkletUrl);
 			this.#inputWorkletUrl = null;
 		}
 
-		const contexts = [this.#inputContext, this.#outputContext].filter(
-			(context): context is AudioContext => context !== null
-		);
+		const contexts = [this.#inputContext, this.#outputContext];
 		this.#inputContext = null;
 		this.#outputContext = null;
 		this.#inputStream = null;
 		this.#prepared = false;
 		this.#inputStarted = false;
 
-		await Promise.allSettled(
-			contexts.map((context) => (context.state === 'closed' ? Promise.resolve() : context.close()))
-		);
+		await Promise.all(contexts.map((context) => this.#closeContext(context)));
 	}
 
 	/** Create the capture context, preferring the native 16 kHz rate. */
@@ -872,6 +965,10 @@ export class AudioManager {
 	async #createCaptureNode(
 		context: AudioContext
 	): Promise<{ node: AudioWorkletNode | ScriptProcessorNode }> {
+		if (this.#closed) {
+			throw new AudioManagerError('closed', 'The conversation ended before capture was ready.');
+		}
+
 		const chunkFrames = Math.max(
 			128,
 			Math.round(
@@ -887,6 +984,14 @@ export class AudioManager {
 				const url = URL.createObjectURL(blob);
 				this.#inputWorkletUrl = url;
 				await context.audioWorklet.addModule(url);
+				if (this.#closed) {
+					URL.revokeObjectURL(url);
+					if (this.#inputWorkletUrl === url) this.#inputWorkletUrl = null;
+					throw new AudioManagerError(
+						'closed',
+						'The conversation ended while the capture processor was loading.'
+					);
+				}
 				const node = new AudioWorkletNode(context, CAPTURE_WORKLET_NAME, {
 					numberOfInputs: 1,
 					numberOfOutputs: 1,
@@ -901,6 +1006,13 @@ export class AudioManager {
 				node.port.postMessage({ type: 'muted', muted: this.#muted });
 				return { node };
 			} catch (cause) {
+				if (this.#closed) {
+					throw new AudioManagerError(
+						'closed',
+						'The conversation ended while the capture processor was loading.',
+						cause
+					);
+				}
 				this.#report(
 					new AudioManagerError(
 						'worklet-failed',
@@ -913,6 +1025,10 @@ export class AudioManager {
 					this.#inputWorkletUrl = null;
 				}
 			}
+		}
+
+		if (this.#closed) {
+			throw new AudioManagerError('closed', 'The conversation ended before capture was ready.');
 		}
 
 		const node = context.createScriptProcessor(2048, 1, 1);
@@ -1152,6 +1268,16 @@ export class AudioManager {
 		this.#lastReportedKey = key;
 		this.#lastReportedAt = now;
 		this.#options.onError?.(error);
+	}
+
+	/** Close a context without throwing or waiting on an already closed one. */
+	async #closeContext(context: AudioContext | null): Promise<void> {
+		if (!context) return;
+		try {
+			if (context.state !== 'closed') await context.close();
+		} catch {
+			// Closing is best effort during teardown.
+		}
 	}
 
 	/** Best-effort node disconnection used by close(). */

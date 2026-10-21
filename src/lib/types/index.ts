@@ -532,11 +532,11 @@ export interface ConversationOptions {
 		| Record<string, unknown>
 		| unknown[]
 		| Promise<string | Record<string, unknown> | unknown[]>;
-	/** Microphone chunk duration in milliseconds. Clamped to 50–250. Defaults to 100. */
+	/** Microphone chunk duration in milliseconds. Clamped to 50 to 250. Defaults to 100. */
 	inputChunkDurationMs?: number;
 	/** Flush agent audio locally as soon as the user starts speaking. Defaults to `true`. */
 	interruptOnUserSpeech?: boolean;
-	/** Normalized RMS threshold (0–1) for local voice activity detection. Defaults to `0.075`. */
+	/** Normalized RMS threshold (0 to 1) for local voice activity detection. Defaults to `0.075`. */
 	vadThreshold?: number;
 	/** Maximum retained transcript entries. Defaults to `250`. */
 	maxTranscripts?: number;
