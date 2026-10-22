@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { afterNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import ThemeToggle from '../_components/ThemeToggle.svelte';
 	import DocsBrand from './_components/DocsBrand.svelte';
 	import DocsSidebar from './_components/DocsSidebar.svelte';
 	import { docsVersion } from './nav.js';
@@ -15,10 +16,6 @@
 	});
 </script>
 
-<svelte:head>
-	<meta name="theme-color" content="#e9e2d3" />
-</svelte:head>
-
 <a class="docs-skip" href="#docs-content">Skip to documentation</a>
 
 <div class="docs-shell">
@@ -32,6 +29,7 @@
 				<a href={resolve('/#console')}>Console</a>
 				<a href="https://github.com/GABRYCA/svelte-elevenlabs" rel="noreferrer">GitHub ↗</a>
 				<span class="docs-topbar__version">v{docsVersion}</span>
+				<ThemeToggle />
 			</nav>
 
 			<button

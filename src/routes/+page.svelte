@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import { onDestroy, onMount } from 'svelte';
 	import { AudioManager, AudioVisualizer, useConversation, type AudioDeviceInfo } from '#lib';
+	import ThemeToggle from './_components/ThemeToggle.svelte';
 
 	const configuredAgentId = (PUBLIC_ELEVENLABS_AGENT_ID ?? '').trim();
 	const staticHosting = PUBLIC_HOSTING_MODE === 'static';
@@ -304,6 +305,7 @@
 		<div class="masthead__meta">
 			<span class="masthead__version">v{version}</span>
 			<span class="masthead__flag">{staticHosting ? 'Static demo' : 'Community build'}</span>
+			<ThemeToggle />
 		</div>
 	</header>
 
@@ -321,9 +323,9 @@
 				</h1>
 
 				<p class="hero__lede">
-					A production-minded SvelteKit library for ElevenLabs Conversational AI. One rune opens a
-					low-latency audio line or a text-only channel, keeps state reactive, and closes every
-					resource when the component leaves the room.
+					A production-minded SvelteKit library for ElevenLabs Conversational AI. One controller
+					opens a low-latency audio line or a text-only channel, keeps state reactive, and closes
+					every resource when the component leaves the room.
 				</p>
 
 				<div class="hero__actions">
@@ -338,7 +340,7 @@
 				</div>
 
 				<ul class="hero__facts" aria-label="Library highlights">
-					<li><strong>Svelte 5</strong><span>runes · SSR-safe</span></li>
+					<li><strong>Svelte 5</strong><span>state · SSR-safe</span></li>
 					<li><strong>Signed URLs</strong><span>key stays server-side</span></li>
 					<li><strong>16 to 24 kHz</strong><span>PCM · AudioWorklet</span></li>
 				</ul>
@@ -366,7 +368,7 @@
 					</div>
 					<div>
 						<dt>Reactivity</dt>
-						<dd>Svelte 5 runes</dd>
+						<dd>Svelte 5 state</dd>
 					</div>
 					<div>
 						<dt>Transport</dt>
@@ -839,8 +841,8 @@
 					<p class="section-head__tag"><span>02</span> Under the hood</p>
 					<h2 id="architecture-title">A short path from<br />click to conversation.</h2>
 					<p class="section-head__copy">
-						The rune owns the socket, the audio graph, and the teardown. Your component owns the
-						interface.
+						The controller owns the socket, the audio graph, and the teardown. Your component owns
+						the interface.
 					</p>
 				</header>
 
@@ -981,9 +983,9 @@
 					<p class="section-head__tag"><span>03</span> Install and start</p>
 					<h2 id="install-title">Five lines to<br />a first sentence.</h2>
 					<p class="section-head__copy">
-						Add the package, give the rune an agent, and let Svelte handle the rest. The static demo
-						uses public agent ids. The local full build adds signed URL exchange with one server
-						secret.
+						Add the package, give the controller an agent, and let Svelte handle the rest. The
+						static demo uses public agent ids. The local full build adds signed URL exchange with
+						one server secret.
 					</p>
 				</header>
 
@@ -1046,7 +1048,7 @@ bun run dev</code
 					<div class="quickstart">
 						<div class="quickstart__top">
 							<span>Quickstart</span>
-							<span>SVELTE 5 / RUNES</span>
+							<span>SVELTE 5 / STATE</span>
 						</div>
 						<pre class="quickstart__code"><code
 								><span class="code-tag">&lt;script lang="ts"&gt;</span>
@@ -1092,7 +1094,7 @@ bun run dev</code
 				<p class="section-head__tag"><span>04</span> API map</p>
 				<h2 id="api-title">Small surface.<br />Deep control.</h2>
 				<p class="section-head__copy">
-					The core rune exposes the reactive values and lifecycle methods the interface needs,
+					The core controller exposes the reactive values and lifecycle methods the interface needs,
 					including text-only sessions, client tools, feedback, and device control. Everything else
 					is an optional extension.
 				</p>
@@ -1226,7 +1228,7 @@ bun run dev</code
 						<span>MIT licensed</span>
 						<span>Runs on Bun and Node</span>
 						<span>Issues welcome</span>
-						<a href="https://github.com/GABRYCA" rel="noreferrer">Author: GABRYCA ↗</a>
+						<a href="https://github.com/GABRYCA" rel="noreferrer">Author: AnonymousGCA ↗</a>
 					</div>
 				</div>
 			</div>
@@ -1261,7 +1263,7 @@ bun run dev</code
 		</div>
 
 		<div class="page-wrap footer__bottom">
-			<span>© 2026 GABRYCA and contributors</span>
+			<span>© 2026 AnonymousGCA and contributors</span>
 			<span>Svelte 5 · SvelteKit · Bun and Node · MIT</span>
 			<a href="#top">Back to top ↑</a>
 		</div>
@@ -1270,8 +1272,8 @@ bun run dev</code
 
 <style>
 	.page {
-		--rule: rgba(23, 23, 18, 0.19);
-		--rule-strong: rgba(23, 23, 18, 0.48);
+		--rule: rgb(var(--ink-rgb) / 0.19);
+		--rule-strong: rgb(var(--ink-rgb) / 0.48);
 		position: relative;
 	}
 
@@ -1526,7 +1528,7 @@ bun run dev</code
 
 	.button--ink:hover {
 		background: var(--signal);
-		color: var(--ink);
+		color: var(--chassis);
 	}
 
 	.button__arrow {
@@ -1534,12 +1536,8 @@ bun run dev</code
 		place-items: center;
 		width: 2.2rem;
 		height: 2.2rem;
-		border-left: 1px solid rgba(241, 234, 219, 0.26);
+		border-left: 1px solid color-mix(in srgb, currentColor 26%, transparent);
 		font-size: 0.9rem;
-	}
-
-	.button--ink:hover .button__arrow {
-		border-color: rgba(23, 23, 18, 0.26);
 	}
 
 	.text-link {
@@ -1597,11 +1595,11 @@ bun run dev</code
 		position: relative;
 		align-self: center;
 		padding: 1rem 1.1rem 1.2rem;
-		border: 1px solid rgba(23, 23, 18, 0.9);
+		border: 1px solid rgb(var(--ink-rgb) / 0.9);
 		background: var(--chassis);
 		color: var(--chalk);
 		box-shadow:
-			10px 10px 0 rgba(23, 23, 18, 0.1),
+			10px 10px 0 rgb(var(--ink-rgb) / 0.1),
 			0 1px 0 rgba(255, 255, 255, 0.06) inset;
 		transform: rotate(1.4deg);
 	}
@@ -1732,9 +1730,9 @@ bun run dev</code
 		right: 0.8rem;
 		bottom: -1.3rem;
 		padding: 0.25rem 0.45rem;
-		border: 1px solid var(--ink);
+		border: 1px solid #17100c;
 		background: var(--agent);
-		color: var(--ink);
+		color: #17100c;
 		font-family: var(--font-mono);
 		font-size: 0.5rem;
 		font-weight: 600;
@@ -1746,10 +1744,10 @@ bun run dev</code
 	}
 
 	.data-strip {
-		border-top: 1px solid var(--ink);
-		border-bottom: 1px solid var(--ink);
-		background: var(--ink);
-		color: var(--paper);
+		border-top: 1px solid var(--chassis);
+		border-bottom: 1px solid var(--chassis);
+		background: var(--chassis);
+		color: var(--chalk);
 	}
 
 	.data-strip__inner {
@@ -2776,11 +2774,11 @@ bun run dev</code
 				to bottom,
 				transparent 0,
 				transparent 27px,
-				rgba(23, 23, 18, 0.13) 28px
+				rgb(var(--ink-rgb) / 0.13) 28px
 			),
 			var(--paper-bright);
 		color: var(--ink);
-		scrollbar-color: rgba(23, 23, 18, 0.3) transparent;
+		scrollbar-color: rgb(var(--ink-rgb) / 0.3) transparent;
 		scrollbar-width: thin;
 	}
 
@@ -2828,7 +2826,7 @@ bun run dev</code
 		width: 1.2rem;
 		height: 1.2rem;
 		flex: 0 0 auto;
-		border: 1px solid rgba(23, 23, 18, 0.36);
+		border: 1px solid rgb(var(--ink-rgb) / 0.36);
 		color: var(--signal-deep);
 		font-size: 0.7rem;
 		line-height: 1;
@@ -2836,7 +2834,7 @@ bun run dev</code
 
 	.printer__small {
 		margin-top: 0.35rem !important;
-		color: rgba(23, 23, 18, 0.56);
+		color: rgb(var(--ink-rgb) / 0.56);
 		font-size: 0.56rem;
 	}
 
@@ -2845,7 +2843,7 @@ bun run dev</code
 		grid-template-columns: 5.6rem minmax(0, 1fr);
 		gap: 1rem;
 		padding: 0.38rem 0 0.55rem;
-		border-bottom: 1px solid rgba(23, 23, 18, 0.12);
+		border-bottom: 1px solid rgb(var(--ink-rgb) / 0.12);
 	}
 
 	.printer__entry:last-child {
@@ -2857,7 +2855,7 @@ bun run dev</code
 		align-content: start;
 		gap: 0.12rem;
 		padding-top: 0.08rem;
-		color: rgba(23, 23, 18, 0.55);
+		color: rgb(var(--ink-rgb) / 0.55);
 		font-family: var(--font-mono);
 		font-size: 0.51rem;
 		letter-spacing: 0.04em;
@@ -2866,7 +2864,7 @@ bun run dev</code
 	}
 
 	.printer__entry[data-role='agent'] .printer__entry-meta span:first-child {
-		color: #527411;
+		color: var(--agent-ink);
 		font-weight: 600;
 	}
 
@@ -3077,8 +3075,13 @@ bun run dev</code
 		border-top: 1px solid var(--rule);
 		border-bottom: 1px solid var(--rule);
 		background:
-			linear-gradient(90deg, transparent 49.94%, rgba(23, 23, 18, 0.055) 50%, transparent 50.06%),
-			linear-gradient(rgba(23, 23, 18, 0.035) 1px, transparent 1px) 0 0 / 100% 3.9rem,
+			linear-gradient(
+				90deg,
+				transparent 49.94%,
+				rgb(var(--ink-rgb) / 0.055) 50%,
+				transparent 50.06%
+			),
+			linear-gradient(rgb(var(--ink-rgb) / 0.035) 1px, transparent 1px) 0 0 / 100% 3.9rem,
 			var(--paper-bright);
 	}
 
@@ -3140,7 +3143,7 @@ bun run dev</code
 
 	.steps code {
 		padding: 0.05rem 0.22rem;
-		background: rgba(23, 23, 18, 0.065);
+		background: rgb(var(--ink-rgb) / 0.065);
 		font-family: var(--font-mono);
 		font-size: 0.68em;
 	}
@@ -3394,13 +3397,13 @@ bun run dev</code
 	.install {
 		padding-block: clamp(3.8rem, 8vw, 7rem);
 		background:
-			radial-gradient(ellipse at 80% 20%, rgba(255, 93, 43, 0.12), transparent 34%), var(--ink);
-		color: var(--paper-bright);
+			radial-gradient(ellipse at 80% 20%, rgba(255, 93, 43, 0.12), transparent 34%), var(--chassis);
+		color: var(--chalk);
 	}
 
 	.section-head--dark h2,
 	.section-head--dark .section-head__tag {
-		color: var(--paper-bright);
+		color: var(--chalk);
 	}
 
 	.section-head--dark .section-head__tag span {
@@ -3408,7 +3411,7 @@ bun run dev</code
 	}
 
 	.section-head--dark .section-head__copy {
-		color: rgba(241, 234, 219, 0.62);
+		color: var(--chalk-muted);
 	}
 
 	.install__grid {
@@ -3452,12 +3455,12 @@ bun run dev</code
 	}
 
 	.install__step-head span:last-child {
-		color: var(--paper-bright);
+		color: var(--chalk);
 	}
 
 	.install__step p {
 		margin: 0.55rem 0 0;
-		color: rgba(241, 234, 219, 0.56);
+		color: var(--chalk-muted);
 		font-family: var(--font-mono);
 		font-size: 0.55rem;
 		line-height: 1.6;
@@ -3502,7 +3505,7 @@ bun run dev</code
 		border: 1px solid rgba(241, 234, 219, 0.22);
 		border-radius: 0;
 		background: transparent;
-		color: var(--paper-bright);
+		color: var(--chalk);
 		cursor: pointer;
 		font-family: var(--font-mono);
 		font-size: 0.47rem;
@@ -3522,7 +3525,7 @@ bun run dev</code
 		padding: 0.7rem;
 		border: 1px solid rgba(241, 234, 219, 0.14);
 		background: #0c0c09;
-		color: var(--paper-bright);
+		color: var(--chalk);
 		font-family: var(--font-mono);
 		font-size: 0.58rem;
 		line-height: 1.75;
@@ -3605,7 +3608,7 @@ bun run dev</code
 	}
 
 	.text-link--light {
-		color: var(--paper-bright);
+		color: var(--chalk);
 		font-size: 0.53rem;
 	}
 
@@ -3617,9 +3620,9 @@ bun run dev</code
 		align-items: center;
 		gap: 0.4rem;
 		padding: 0.35rem 0.5rem;
-		border: 1px solid var(--ink);
+		border: 1px solid #17100c;
 		background: var(--agent);
-		color: var(--ink);
+		color: #17100c;
 		transform: rotate(-4deg);
 	}
 
@@ -3663,7 +3666,7 @@ bun run dev</code
 	.install__note p {
 		max-width: 61rem;
 		margin: 0;
-		color: rgba(241, 234, 219, 0.5);
+		color: var(--chalk-muted);
 		font-family: var(--font-mono);
 		font-size: 0.53rem;
 		line-height: 1.6;
@@ -3689,7 +3692,7 @@ bun run dev</code
 
 	.api__panel--methods {
 		border-right: 0;
-		background: rgba(255, 255, 255, 0.16);
+		background: color-mix(in srgb, var(--paper-bright) 55%, transparent);
 	}
 
 	.api__panel-head {
@@ -3748,7 +3751,7 @@ bun run dev</code
 
 	.type {
 		padding: 0.08rem 0.2rem;
-		background: rgba(23, 23, 18, 0.07);
+		background: rgb(var(--ink-rgb) / 0.07);
 		font-family: var(--font-mono);
 		font-size: 0.56rem;
 	}
@@ -3769,7 +3772,7 @@ bun run dev</code
 	.method code {
 		display: inline-block;
 		padding: 0.16rem 0.28rem;
-		background: var(--ink);
+		background: var(--chassis);
 		color: var(--agent);
 		font-size: 0.57rem;
 		line-height: 1.4;
@@ -3853,7 +3856,7 @@ bun run dev</code
 
 	.api__caveat code {
 		padding: 0.06rem 0.22rem;
-		background: rgba(23, 23, 18, 0.08);
+		background: rgb(var(--ink-rgb) / 0.08);
 	}
 
 	.community {
@@ -3864,7 +3867,7 @@ bun run dev</code
 					90deg,
 					transparent 0,
 					transparent calc(100% - 1px),
-					rgba(23, 23, 18, 0.055) calc(100% - 1px)
+					rgb(var(--ink-rgb) / 0.055) calc(100% - 1px)
 				)
 				0 0 / 4.8rem 100%,
 			var(--paper-deep);
@@ -3899,9 +3902,9 @@ bun run dev</code
 	.community__disclaimer {
 		margin: 1.8rem 0 1.6rem;
 		padding: 1rem 1.1rem;
-		border: 1px solid var(--ink);
+		border: 1px solid #17100c;
 		background: var(--signal);
-		color: var(--ink);
+		color: #17100c;
 		font-family: var(--font-mono);
 		font-size: 0.68rem;
 		font-weight: 530;
@@ -4044,6 +4047,32 @@ bun run dev</code
 
 	.footer__bottom a:hover {
 		color: var(--agent);
+	}
+
+	:global(html[data-theme='dark']) .brand-mark {
+		border-color: var(--chassis-line);
+		background: var(--chassis);
+	}
+
+	:global(html[data-theme='dark']) .spec {
+		border-color: rgba(241, 234, 219, 0.34);
+		box-shadow:
+			10px 10px 0 rgba(0, 0, 0, 0.42),
+			0 1px 0 rgba(255, 255, 255, 0.06) inset;
+	}
+
+	:global(html[data-theme='dark']) .console::before {
+		background: repeating-linear-gradient(
+			90deg,
+			rgba(241, 234, 219, 0.22) 0,
+			rgba(241, 234, 219, 0.22) 1px,
+			transparent 1px,
+			transparent 9px
+		);
+	}
+
+	:global(html[data-theme='dark']) .schematic {
+		box-shadow: 0 12px 0 rgba(0, 0, 0, 0.4);
 	}
 
 	@keyframes pulse {

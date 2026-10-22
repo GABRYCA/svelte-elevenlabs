@@ -26,6 +26,8 @@
 
 	let { title, summary, toc = [], children }: Props = $props();
 
+	let activeId = $state('');
+
 	const currentIndex = $derived(docsNavFlat.findIndex((item) => item.href === page.route.id));
 	const previous = $derived(currentIndex > 0 ? (docsNavFlat[currentIndex - 1] ?? null) : null);
 	const next = $derived(currentIndex >= 0 ? (docsNavFlat[currentIndex + 1] ?? null) : null);
@@ -36,6 +38,62 @@
 				? 'src/routes/docs/+page.svelte'
 				: `src/routes${routeId}/+page.svelte`;
 		return `https://github.com/GABRYCA/svelte-elevenlabs/blob/main/${file}`;
+	});
+
+	$effect(() => {
+		const ids = toc.map((item) => item.id);
+		if (ids.length === 0) {
+			activeId = '';
+			return;
+		}
+
+		let frame = 0;
+		let disposed = false;
+
+		const update = () => {
+			const root = document.documentElement;
+			const scrollable = root.scrollHeight - window.innerHeight;
+
+			if (scrollable > 0 && window.scrollY >= scrollable - 4) {
+				activeId = ids[ids.length - 1] ?? '';
+				return;
+			}
+
+			// Headings settle below the sticky bar after an anchor jump: 2rem page scroll
+			// padding plus the 5.2rem heading margin. Keep the threshold clear of that line
+			// so the clicked section, not the one above it, becomes active.
+			const threshold = 140;
+			let current = ids[0] ?? '';
+
+			for (const id of ids) {
+				const heading = document.getElementById(id);
+				if (!heading) continue;
+				if (heading.getBoundingClientRect().top > threshold) break;
+				current = id;
+			}
+
+			activeId = current;
+		};
+
+		const schedule = () => {
+			if (disposed || frame) return;
+			frame = requestAnimationFrame(() => {
+				frame = 0;
+				update();
+			});
+		};
+
+		update();
+		window.addEventListener('scroll', schedule, { passive: true });
+		window.addEventListener('resize', schedule);
+		void document.fonts.ready.then(schedule);
+
+		return () => {
+			disposed = true;
+			window.removeEventListener('scroll', schedule);
+			window.removeEventListener('resize', schedule);
+			if (frame) cancelAnimationFrame(frame);
+		};
 	});
 </script>
 
@@ -90,7 +148,11 @@
 		<p class="docs-toc__label">On this page</p>
 		<ol class="docs-toc__list">
 			{#each toc as item (item.id)}
-				<li><a href={`#${item.id}`}>{item.label}</a></li>
+				<li>
+					<a href={`#${item.id}`} aria-current={activeId === item.id ? 'location' : undefined}
+						>{item.label}</a
+					>
+				</li>
 			{/each}
 		</ol>
 	</aside>

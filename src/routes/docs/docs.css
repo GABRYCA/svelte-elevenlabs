@@ -7,12 +7,13 @@
  */
 
 .docs-shell {
-	--docs-rule: rgba(23, 23, 18, 0.16);
-	--docs-rule-strong: rgba(23, 23, 18, 0.38);
+	--docs-rule: rgb(var(--ink-rgb) / 0.16);
+	--docs-rule-strong: rgb(var(--ink-rgb) / 0.38);
+	--docs-code-shadow: rgba(23, 23, 18, 0.08);
 	--docs-rail: 15.25rem;
 	--docs-toc: 11rem;
 	--docs-content: 46rem;
-	--docs-agent-ink: #4b6612;
+	--docs-agent-ink: var(--agent-ink);
 
 	position: relative;
 	min-height: 100vh;
@@ -244,8 +245,9 @@
 }
 
 .docs-filter {
+	display: block;
 	position: relative;
-	margin: 0 0 1.5rem;
+	margin: 0 0 1.65rem;
 }
 
 .docs-filter input {
@@ -400,6 +402,7 @@
 
 .docs-article {
 	min-width: 0;
+	animation: docs-enter 300ms cubic-bezier(0.22, 0.68, 0.24, 1) both;
 }
 
 .docs-article__head {
@@ -698,7 +701,7 @@
 	border: 1px solid var(--chassis);
 	background: var(--chassis);
 	color: var(--chalk);
-	box-shadow: 4px 4px 0 rgba(23, 23, 18, 0.08);
+	box-shadow: 4px 4px 0 var(--docs-code-shadow);
 }
 
 .docs-code__bar {
@@ -777,13 +780,54 @@
 
 .docs-code__line {
 	display: block;
-	min-height: 1.3em;
+	min-height: 1.7em;
 	white-space: pre;
 }
 
-.docs-code__line.is-comment {
-	color: var(--chalk-muted);
-	opacity: 0.62;
+/* Token colors stay fixed because code samples sit on the dark chassis. */
+.tok-comment {
+	color: #938d7d;
+	font-style: italic;
+}
+
+.tok-keyword {
+	color: #ff9a6b;
+}
+
+.tok-string {
+	color: #cfe98b;
+}
+
+.tok-number {
+	color: #f0c978;
+}
+
+.tok-function {
+	color: #f6f0e3;
+}
+
+.tok-tag {
+	color: #ff8b6b;
+}
+
+.tok-attr {
+	color: #e3cf9e;
+}
+
+.tok-property {
+	color: #e9d7ae;
+}
+
+.tok-type {
+	color: #a9c9d6;
+}
+
+.tok-meta {
+	color: #a9c9d6;
+}
+
+.tok-punct {
+	color: #9d9789;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -955,6 +999,7 @@
 	top: 5.4rem;
 	padding-top: clamp(2.3rem, 4vw, 3.5rem);
 	font-family: var(--font-mono);
+	animation: docs-enter 360ms 40ms cubic-bezier(0.22, 0.68, 0.24, 1) both;
 }
 
 .docs-toc__label {
@@ -983,9 +1028,19 @@
 	font-size: 0.61rem;
 	line-height: 1.45;
 	text-decoration: none;
+	transition:
+		border-color 180ms ease,
+		color 180ms ease,
+		padding-left 180ms ease;
 }
 
 .docs-toc a:hover {
+	border-left-color: var(--signal);
+	color: var(--ink);
+}
+
+.docs-toc a[aria-current='location'] {
+	padding-left: 0.9rem;
 	border-left-color: var(--signal);
 	color: var(--ink);
 }
@@ -1106,6 +1161,34 @@
 .docs-footer__links a:hover {
 	color: var(--signal-deep);
 	border-bottom-color: var(--signal-deep);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Dark theme                                                                 */
+/* -------------------------------------------------------------------------- */
+
+html[data-theme='dark'] .docs-shell {
+	--docs-code-shadow: rgba(0, 0, 0, 0.46);
+}
+
+html[data-theme='dark'] .docs-brand__mark {
+	border-color: var(--docs-rule-strong);
+	background: var(--chassis);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Motion                                                                     */
+/* -------------------------------------------------------------------------- */
+
+@keyframes docs-enter {
+	from {
+		opacity: 0;
+		transform: translateY(0.5rem);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1235,6 +1318,15 @@
 
 @media (prefers-reduced-motion: reduce) {
 	.docs-skip {
+		transition: none;
+	}
+
+	.docs-article,
+	.docs-toc {
+		animation: none;
+	}
+
+	.docs-toc a {
 		transition: none;
 	}
 }

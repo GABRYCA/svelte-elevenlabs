@@ -3,10 +3,10 @@
 	"version": "0.4.0",
 	"description": "A community-driven Svelte 5 library and starter kit for ElevenLabs Conversational AI and low-latency audio streaming.",
 	"license": "MIT",
-	"author": "GABRYCA (https://github.com/GABRYCA)",
+	"author": "AnonymousGCA (https://github.com/GABRYCA)",
 	"contributors": [
 		{
-			"name": "GABRYCA",
+			"name": "AnonymousGCA",
 			"url": "https://github.com/GABRYCA"
 		}
 	],

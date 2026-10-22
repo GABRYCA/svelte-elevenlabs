@@ -11,10 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Documentation section at `/docs` with start here pages, task guides, a searchable sidebar, copyable code samples, previous and next links, and a full API reference.
 - Docs links in the showcase masthead and footer, plus a direct "Read the docs" action in the hero.
+- A light and dark theme across the showcase and docs, with a saved preference and system default.
+- Language-aware syntax highlighting for TypeScript, Svelte, shell, CSS, JSON, and HTTP samples.
+- A scroll-aware "On this page" rail that marks the current section and moves between entries smoothly.
+- A short enter transition for docs articles and the table of contents on navigation.
 
 ### Changed
 
 - The showcase now offers a documentation path that works in the Node, Bun, and static Pages builds through `resolve()` and `PAGES_BASE_PATH`.
+- Public copy now says controller or Svelte 5 state instead of rune, while internal module paths stay unchanged.
+- Author display text now reads AnonymousGCA. Repository and profile URLs still use the GABRYCA account.
+
+### Fixed
+
+- The docs sidebar filter now leaves clear space below the search field and above the first group label.
 
 ## [0.4.0] - 2026-10-21
 
@@ -85,7 +95,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rewrote the README for Node and Bun, npm publishing, static hosting, and security guidance.
 - Updated the showcase for static mode with public agent ids and a disabled signed URL option.
 - Moved the showcase environment contract to SvelteKit 3 `$app/env/public`.
-- Added author attribution for GABRYCA in package metadata, the showcase, and the license.
+- Added author attribution for AnonymousGCA in package metadata, the showcase, and the license.
 - Replaced reactive `SvelteMap`, `SvelteSet`, and `SvelteURL` with native `Map`, `Set`, and `URL` where reactivity is not required.
 - Restricted negotiated `ulaw` formats to `ulaw_8000`.
 - Removed long dashes from source, tests, static files, and documentation.

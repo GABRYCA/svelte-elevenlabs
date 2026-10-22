@@ -17,8 +17,8 @@
 >
 	<h2 id="first-session">Your first session</h2>
 	<p>
-		Call <code>useConversation</code> during component initialisation. The rune creates a controller and
-		registers a teardown effect, so there is no socket or audio graph to close by hand.
+		Call <code>useConversation</code> during component initialisation. It creates a controller and registers
+		a teardown effect, so there is no socket or audio graph to close by hand.
 	</p>
 	<CodeBlock
 		filename="VoicePanel.svelte"

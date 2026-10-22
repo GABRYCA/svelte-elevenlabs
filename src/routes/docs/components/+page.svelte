@@ -296,7 +296,7 @@
 @source '../node_modules/svelte-elevenlabs/dist';`}
 	/>
 	<p>
-		If you only use the rune and the audio helpers, no Tailwind setting is required. See
+		If you only use the controller and the audio helpers, no Tailwind setting is required. See
 		<a href={resolve('/docs/install')}>Install</a> for the package setup.
 	</p>
 

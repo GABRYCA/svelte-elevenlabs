@@ -17,8 +17,10 @@
 	--paper: #e9e2d3;
 	--paper-bright: #f3eddf;
 	--paper-deep: #d7cbb8;
+	--paper-rgb: 233 226 211;
 	--ink: #171712;
 	--ink-soft: #4b483f;
+	--ink-rgb: 23 23 18;
 	--chassis: #12120f;
 	--chassis-raised: #1b1b16;
 	--chassis-line: rgba(241, 234, 219, 0.14);
@@ -27,6 +29,7 @@
 	--signal: #ff5d2b;
 	--signal-deep: #d94115;
 	--agent: #cdf66c;
+	--agent-ink: #4b6612;
 	--font-display: 'Bricolage Grotesque Variable', ui-sans-serif, system-ui, sans-serif;
 	--font-mono: 'Azeret Mono Variable', ui-monospace, 'SFMono-Regular', monospace;
 	--page-max: 1240px;
@@ -38,6 +41,28 @@
 	color-scheme: light;
 	text-rendering: optimizeLegibility;
 	-webkit-font-smoothing: antialiased;
+}
+
+/*
+ * The dark palette keeps the warm paper and chassis character of the light
+ * theme. Surfaces lift with each step instead of dropping into pure black.
+ */
+html[data-theme='dark'] {
+	--paper: #14140f;
+	--paper-bright: #1d1d16;
+	--paper-deep: #25251c;
+	--paper-rgb: 20 20 15;
+	--ink: #f1eadb;
+	--ink-soft: #b8b1a2;
+	--ink-rgb: 241 234 219;
+	--chassis: #0c0c09;
+	--chassis-raised: #161610;
+	--chassis-line: rgba(241, 234, 219, 0.16);
+	--chalk: #f4eee1;
+	--chalk-muted: rgba(244, 238, 225, 0.6);
+	--signal-deep: #ff8b6b;
+	--agent-ink: #b7e04f;
+	color-scheme: dark;
 }
 
 *,
@@ -62,6 +87,15 @@ body {
 	font-family: var(--font-display);
 	font-size: 16px;
 	line-height: 1.5;
+	transition:
+		background-color 220ms ease,
+		color 220ms ease;
+}
+
+html[data-theme='dark'] body {
+	background:
+		radial-gradient(ellipse at 10% -8%, rgba(255, 93, 43, 0.11), transparent 40%),
+		radial-gradient(ellipse at 86% 8%, rgba(205, 246, 108, 0.045), transparent 34%), var(--paper);
 }
 
 body::after {
@@ -73,6 +107,11 @@ body::after {
 	mix-blend-mode: multiply;
 	opacity: 0.028;
 	pointer-events: none;
+}
+
+html[data-theme='dark'] body::after {
+	mix-blend-mode: screen;
+	opacity: 0.018;
 }
 
 ::selection {

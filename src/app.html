@@ -1,12 +1,31 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 	<head>
 		<meta charset="utf-8" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.svg" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="text-scale" content="scale" />
-		<meta name="theme-color" content="#12120f" />
-		<meta name="color-scheme" content="light" />
+		<meta name="theme-color" content="#e9e2d3" media="(prefers-color-scheme: light)" />
+		<meta name="theme-color" content="#14140f" media="(prefers-color-scheme: dark)" />
+		<meta name="color-scheme" content="light dark" />
+		<script>
+			(() => {
+				const key = 'svelte-elevenlabs-theme';
+
+				try {
+					const stored = localStorage.getItem(key);
+					const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+					const dark = stored === 'dark' || (stored === null && prefersDark);
+					document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+
+					for (const tag of document.querySelectorAll('meta[name="theme-color"]')) {
+						tag.setAttribute('content', dark ? '#14140f' : '#e9e2d3');
+					}
+				} catch {
+					document.documentElement.dataset.theme = 'light';
+				}
+			})();
+		</script>
 		<meta
 			name="description"
 			content="An independent Svelte 5 library and starter kit for ElevenLabs Conversational AI, with signed URLs, low-latency audio, and zero-leak cleanup."

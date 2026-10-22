@@ -346,7 +346,7 @@ conversation.destroy();`}
 		<code>destroy()</code> is idempotent. The controller also stops itself on
 		<code>pagehide</code> so a navigation does not leave a socket running.
 	</p>
-	<Callout tone="warning" title="Call the rune during initialisation">
+	<Callout tone="warning" title="Call the controller during initialisation">
 		<p>
 			<code>useConversation</code> must be called synchronously during component initialisation. If
 			you need a controller in a store, a test, or after an <code>await</code>, use

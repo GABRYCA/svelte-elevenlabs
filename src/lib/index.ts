@@ -1,7 +1,7 @@
 /**
  * `svelte-elevenlabs` public entry point.
  *
- * The package ships a reactive Svelte 5 rune, a framework-agnostic audio
+ * The package ships a reactive Svelte 5 controller, a framework-agnostic audio
  * engine, optional ready-made UI, and the complete TypeScript surface for the
  * ElevenLabs Conversational AI protocol.
  *

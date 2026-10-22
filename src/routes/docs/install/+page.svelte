@@ -63,7 +63,7 @@ import type { AudioFormat, ConversationOptions } from 'svelte-elevenlabs/types';
 	/>
 	<p>Published subpaths:</p>
 	<ul>
-		<li><code>svelte-elevenlabs</code> for the rune, audio engine, types, and components.</li>
+		<li><code>svelte-elevenlabs</code> for the controller, audio engine, types, and components.</li>
 		<li>
 			<code>svelte-elevenlabs/audio</code> for the framework-agnostic audio manager and helpers.
 		</li>
@@ -135,7 +135,7 @@ PUBLIC_ELEVENLABS_AGENT_ID=agent_examplePublicId`}
 	<ol class="docs-steps">
 		<li>
 			<p>
-				Import the rune in a component and run your type check. For this repository, that is
+				Import the controller in a component and run your type check. For this repository, that is
 				<code>bun run check</code>.
 			</p>
 		</li>

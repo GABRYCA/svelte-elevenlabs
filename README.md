@@ -2,11 +2,11 @@
 
 > **This is an independent community project. Not affiliated with or endorsed by ElevenLabs Inc.**
 
-A Svelte 5 library and SvelteKit 3 showcase for ElevenLabs Conversational AI. One rune opens a low-latency voice or text session, exposes reactive call state, streams PCM audio over a WebSocket, and releases every socket, media track, audio node, and timer when the component leaves the page.
+A Svelte 5 library and SvelteKit 3 showcase for ElevenLabs Conversational AI. One controller opens a low-latency voice or text session, exposes reactive call state, streams PCM audio over a WebSocket, and releases every socket, media track, audio node, and timer when the component leaves the page.
 
 Runs on **Node 22.17 or newer** and **Bun 1.4 or newer**. Built with **Svelte 5**, **SvelteKit 3**, **TypeScript**, and **TailwindCSS 4**.
 
-- **Rune-first state:** `status`, `isSpeaking`, `isListening`, `volume`, `transcripts`, and `error` update directly in your markup.
+- **Controller-first state:** `status`, `isSpeaking`, `isListening`, `volume`, `transcripts`, and `error` update directly in your markup.
 - **Signed URLs without leaks:** the API key stays in the SvelteKit server process. The browser receives only a short-lived URL.
 - **Real audio:** AudioWorklet capture, low-pass anti-aliasing, sample-rate conversion, PCM16 little-endian base64, one-clock playback scheduling, and immediate barge-in flushing.
 - **Text only sessions:** skip microphone permission and audio contexts while keeping typed turns, transcripts, client tools, and feedback on the same socket.
@@ -43,6 +43,8 @@ The showcase ships a documentation section at [gabryca.github.io/svelte-elevenla
 
 Run `bun run dev` and open `http://localhost:5173/docs` to read it locally. The static Pages build includes the same pages and respects `PAGES_BASE_PATH`, while the signed URL guide explains why that route only exists on the Node or Bun server.
 
+The showcase and docs share a light and dark theme. The first visit follows the system color scheme, the toggle in the masthead or docs top bar saves a choice, and both palettes keep the warm paper and chassis character. Documentation code samples are tokenized for TypeScript, Svelte, shell, CSS, JSON, and HTTP. The right rail marks the section currently in view and moves between entries smoothly, and each docs article enters with a short, reduced-motion-aware transition.
+
 ## Requirements
 
 | Requirement | Version or note                                                             |
@@ -50,7 +52,7 @@ Run `bun run dev` and open `http://localhost:5173/docs` to read it locally. The 
 | Node        | **22.17 or newer** for the server build and package tooling                 |
 | Bun         | **1.4 or newer** for installs, scripts, and the optional Bun server adapter |
 | Svelte      | **5.x** peer dependency                                                     |
-| SvelteKit   | **3.x** for the included showcase. The rune itself only needs Svelte.       |
+| SvelteKit   | **3.x** for the included showcase. The controller itself only needs Svelte. |
 | TypeScript  | Strict mode with no implicit `any`                                          |
 | Browser     | WebSocket, Web Audio, `getUserMedia`, and a secure context                  |
 | ElevenLabs  | An agent id and, for signed mode, a workspace API key                       |
@@ -76,7 +78,7 @@ import type { AudioFormat, ConversationOptions } from 'svelte-elevenlabs/types';
 
 Published subpaths:
 
-- `svelte-elevenlabs` for the rune, audio engine, types, and components.
+- `svelte-elevenlabs` for the controller, audio engine, types, and components.
 - `svelte-elevenlabs/audio` for the framework-agnostic audio manager and helpers.
 - `svelte-elevenlabs/types` for the public type surface and `ConversationError`.
 - `svelte-elevenlabs/package.json` for tooling.
@@ -268,7 +270,7 @@ Error response:
 
 The server validates the agent id, calls the ElevenLabs signed URL endpoint with `xi-api-key`, and returns a short-lived WebSocket URL. The response is marked `Cache-Control: no-store`. The API key is never echoed to the client.
 
-The rune fetches this same-origin route only when you ask for it:
+The controller fetches this same-origin route only when you ask for it:
 
 ```ts
 await conversation.startConversation('agent_...', { signed: true });
@@ -456,7 +458,7 @@ All fields are Svelte 5 reactive state.
 
 ### `createConversation(options?)`
 
-The non-rune factory. It returns a controller without registering an `$effect`. Use it in stores, tests, or custom lifecycle code, and call `destroy()` when finished.
+The lifecycle-free factory. It returns a controller without registering an `$effect`. Use it in stores, tests, or custom lifecycle code, and call `destroy()` when finished.
 
 ### `ConversationProvider`
 
@@ -572,7 +574,7 @@ import {
 - **Feedback and activity** are sent only while connected. Feedback uses the latest agent response event id, and user activity is throttled to one frame per second.
 - **Client tools and MCP approvals** resolve once per tool call. MCP approvals are aborted when the session ends or the server leaves the approval state.
 - **Microphone denial** maps to a clear message and an `errorCode` of `permission-denied` or `insecure-context`. The audio graph is closed and no partial session remains.
-- **SSR safety:** the rune state is server-safe, but `startConversation` refuses to run outside a browser. Use it in event handlers.
+- **SSR safety:** the controller state is server-safe, but `startConversation` refuses to run outside a browser. Use it in event handlers.
 - **Cleanup:** sockets, `MediaStream` tracks, AudioWorklet URLs, analyser nodes, both audio contexts, ping timers, signed URL aborts, scroll timers, and animation frames are released.
 - **Target validation:** the client rejects malformed agent ids and non-WebSocket URLs before it asks for microphone permission.
 
@@ -584,7 +586,7 @@ The default suite is offline and deterministic:
 bun run test
 ```
 
-It covers audio format parsing, resampling, PCM16 and µ-law encoding and decoding, `AudioManager` browser guards, device enumeration guards, protocol parsing, target validation, URL normalization, server locations, close messages, error classes, the signed URL route, and reactive controller state. Controller coverage includes text only guards, feedback, user activity throttling, client tools, MCP approvals, volume clamping, and mode transitions. Vitest runs in the Node environment with the Svelte plugin, so rune modules compile without a browser. No microphone, Web Audio, network, or API key is required.
+It covers audio format parsing, resampling, PCM16 and µ-law encoding and decoding, `AudioManager` browser guards, device enumeration guards, protocol parsing, target validation, URL normalization, server locations, close messages, error classes, the signed URL route, and reactive controller state. Controller coverage includes text only guards, feedback, user activity throttling, client tools, MCP approvals, volume clamping, and mode transitions. Vitest runs in the Node environment with the Svelte plugin, so controller modules compile without a browser. No microphone, Web Audio, network, or API key is required.
 
 Live tests are opt-in because they consume ElevenLabs quota and are not part of the default suite, CI, or the release workflow:
 

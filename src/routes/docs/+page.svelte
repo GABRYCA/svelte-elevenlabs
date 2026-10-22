@@ -30,7 +30,7 @@
 	<dl class="docs-facts">
 		<div>
 			<dt>Runtime</dt>
-			<dd>Svelte 5 runes</dd>
+			<dd>Svelte 5 state</dd>
 		</div>
 		<div>
 			<dt>Transport</dt>
@@ -86,7 +86,7 @@
 	<ol class="docs-steps">
 		<li>
 			<p>
-				<strong>Your component calls a rune.</strong> <code>useConversation</code> creates a
+				<strong>Your component calls a controller.</strong> <code>useConversation</code> creates a
 				<code>ConversationController</code> and registers an <code>$effect</code> teardown. Use
 				<code>createConversation</code> in stores, tests, or any place where you want to own cleanup.
 			</p>

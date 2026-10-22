@@ -25,7 +25,7 @@
 			</thead>
 			<tbody>
 				<tr
-					><td><code>useConversation(options?)</code></td><td>Rune</td><td
+					><td><code>useConversation(options?)</code></td><td>Controller</td><td
 						>Creates a controller and registers an <code>$effect</code> teardown.</td
 					></tr
 				>
@@ -55,7 +55,7 @@
 					></tr
 				>
 				<tr
-					><td><code>useConversationClientTool(name, handler)</code></td><td>Rune</td><td
+					><td><code>useConversationClientTool(name, handler)</code></td><td>Controller</td><td
 						>Registers a component scoped tool on the provider controller.</td
 					></tr
 				>

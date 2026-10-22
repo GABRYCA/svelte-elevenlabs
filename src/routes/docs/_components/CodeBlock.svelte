@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { highlight } from './highlight.js';
+
 	/** Props for a copyable documentation code sample. */
 	interface Props {
 		/** Code without surrounding fences. */
@@ -15,7 +17,7 @@
 	let timer: ReturnType<typeof setTimeout> | null = null;
 
 	const label = $derived(filename ?? lang.toUpperCase());
-	const lines = $derived(code.replace(/\n$/, '').split('\n'));
+	const lines = $derived(highlight(code, lang));
 
 	$effect(() => {
 		return () => {
@@ -38,10 +40,6 @@
 			timer = null;
 		}, 2_000);
 	}
-
-	function isComment(line: string): boolean {
-		return /^\s*(\/\/|#|<!--|\/\*|\*)/.test(line);
-	}
 </script>
 
 <div class="docs-code">
@@ -58,8 +56,10 @@
 		</button>
 	</div>
 	<pre><code
-			>{#each lines as line, index (index)}<span
-					class={['docs-code__line', { 'is-comment': isComment(line) }]}>{line || ' '}</span
+			>{#each lines as line, index (index)}<span class="docs-code__line"
+					>{#each line as token, tokenIndex (tokenIndex)}<span class={`tok-${token.kind}`}
+							>{token.text}</span
+						>{/each}</span
 				>{/each}</code
 		></pre>
 </div>
