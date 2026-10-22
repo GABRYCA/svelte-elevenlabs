@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Documentation section at `/docs` with start here pages, task guides, a searchable sidebar, copyable code samples, previous and next links, and a full API reference.
+- Docs links in the showcase masthead and footer, plus a direct "Read the docs" action in the hero.
+
+### Changed
+
+- The showcase now offers a documentation path that works in the Node, Bun, and static Pages builds through `resolve()` and `PAGES_BASE_PATH`.
+
 ## [0.4.0] - 2026-10-21
 
 ### Added

@@ -33,6 +33,16 @@ Runs on **Node 22.17 or newer** and **Bun 1.4 or newer**. Built with **Svelte 5*
 
 The repository also contains a runnable SvelteKit 3 showcase in `src/routes`. It demonstrates the controller, signed and public connection modes, voice and text sessions, device controls, feedback, and the diagnostic console.
 
+## Documentation
+
+The showcase ships a documentation section at [gabryca.github.io/svelte-elevenlabs/docs](https://gabryca.github.io/svelte-elevenlabs/docs). It covers the same API as this guide, organized by task:
+
+- **Start here:** overview, install, and quickstart.
+- **Guides:** sessions, audio, client tools, components, and signed URLs.
+- **Reference:** API reference and troubleshooting.
+
+Run `bun run dev` and open `http://localhost:5173/docs` to read it locally. The static Pages build includes the same pages and respects `PAGES_BASE_PATH`, while the signed URL guide explains why that route only exists on the Node or Bun server.
+
 ## Requirements
 
 | Requirement | Version or note                                                             |

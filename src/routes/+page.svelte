@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { PUBLIC_ELEVENLABS_AGENT_ID, PUBLIC_HOSTING_MODE } from '$app/env/public';
+	import { resolve } from '$app/paths';
 	import { onDestroy, onMount } from 'svelte';
 	import { AudioManager, AudioVisualizer, useConversation, type AudioDeviceInfo } from '#lib';
 
@@ -297,6 +298,7 @@
 			<a href="#architecture">Architecture</a>
 			<a href="#install">Install</a>
 			<a href="#api">API</a>
+			<a href={resolve('/docs')}>Docs</a>
 		</nav>
 
 		<div class="masthead__meta">
@@ -329,8 +331,8 @@
 						<span>Open the console</span>
 						<span class="button__arrow" aria-hidden="true">↘</span>
 					</a>
-					<a class="text-link" href="#install">
-						Read the install
+					<a class="text-link" href={resolve('/docs')}>
+						Read the docs
 						<span aria-hidden="true">→</span>
 					</a>
 				</div>
@@ -1245,6 +1247,7 @@ bun run dev</code
 				<a href="#architecture">Architecture</a>
 				<a href="#install">Install</a>
 				<a href="#api">API</a>
+				<a href={resolve('/docs')}>Docs</a>
 				<a href="https://github.com/GABRYCA/svelte-elevenlabs" rel="noreferrer">GitHub ↗</a>
 				<a href="https://elevenlabs.io/docs/conversational-ai/overview" rel="noreferrer">
 					ElevenLabs docs ↗
