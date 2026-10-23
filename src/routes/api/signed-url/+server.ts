@@ -143,7 +143,7 @@ export const GET: RequestHandler = async ({ url, fetch, request, setHeaders }) =
 		if (!signedUrl) {
 			console.error(
 				'[svelte-elevenlabs] ElevenLabs returned an unexpected signed URL payload.',
-				body
+				isRecord(body) ? Object.keys(body) : typeof body
 			);
 			return json(
 				{

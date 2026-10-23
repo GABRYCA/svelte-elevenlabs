@@ -66,7 +66,7 @@
 				>
 				<tr
 					><td><code>AudioVisualizer</code></td><td>Component</td><td
-						>Canvas spectrum driven by a controller.</td
+						>Canvas view of the live spectra.</td
 					></tr
 				>
 				<tr
@@ -80,8 +80,9 @@
 
 	<h2 id="controller-state">Controller state</h2>
 	<p>
-		These fields are Svelte state. They are read-only from your component. The full behavior for
-		each group is covered in <a href={resolve('/docs/sessions')}>Sessions</a> and
+		These fields are Svelte state or derived values. <code>isTextOnly</code> is a getter. Treat them
+		as read-only from your component and change state through the methods below. The full behavior
+		for each group is covered in <a href={resolve('/docs/sessions')}>Sessions</a> and
 		<a href={resolve('/docs/audio')}>Audio</a>.
 	</p>
 	<div class="docs-table-wrap">
@@ -140,8 +141,9 @@
 					><td><code>startConversation(target?, options?)</code></td><td
 						><code>Promise&lt;void&gt;</code></td
 					><td
-						>Opens the session. Never rejects. Target can be an agent id, a <code>ws://</code> or
-						<code>wss://</code> URL (http and https are normalized), or omitted.</td
+						>Opens the session. Connection and audio failures populate <code>error</code>. Target
+						can be an agent id, a <code>ws://</code> or <code>wss://</code> URL (http and https are normalized),
+						or omitted.</td
 					></tr
 				>
 				<tr
@@ -257,7 +259,7 @@
 				>
 				<tr
 					><td><code>destroy()</code></td><td><code>void</code></td><td
-						>Releases every resource. Idempotent.</td
+						>Releases its resources. Idempotent.</td
 					></tr
 				>
 			</tbody>

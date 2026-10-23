@@ -7,7 +7,7 @@
 
 <DocsPage
 	title="Components"
-	summary="The live spectrum, the complete conversation widget, the provider, and the CSS variables that theme them."
+	summary="The live spectra, the complete conversation widget, the provider, and the CSS variables that theme them."
 	toc={[
 		{ id: 'visualizer', label: 'AudioVisualizer' },
 		{ id: 'widget', label: 'ConversationWidget' },
@@ -20,8 +20,8 @@
 	<h2 id="visualizer">AudioVisualizer</h2>
 	<p>
 		<code>AudioVisualizer</code> paints the live analyser data from a controller. It never invents levels:
-		when no session is active it draws a quiet standby trace, and when a session is live it switches between
-		microphone and agent data based on what the controller reports.
+		when no session is active it draws a static standby grid and baseline, and when a session is live
+		it draws the microphone and agent spectra from their analyser data.
 	</p>
 	<CodeBlock
 		filename="Panel.svelte"
@@ -54,7 +54,7 @@
 				<tr
 					><td><code>conversation</code></td><td><code>ConversationController | null</code></td><td
 						><code>null</code></td
-					><td>Controller to read. Renders a standby trace when omitted.</td></tr
+					><td>Controller to read. Renders the idle state when omitted.</td></tr
 				>
 				<tr
 					><td><code>height</code></td><td><code>number</code></td><td><code>176</code></td><td
@@ -67,7 +67,7 @@
 				>
 				<tr
 					><td><code>label</code></td><td><code>string</code></td><td
-						>Live microphone and agent audio spectrum</td
+						>Live microphone and agent audio spectra</td
 					><td>Accessible label and description source.</td></tr
 				>
 				<tr
@@ -81,7 +81,7 @@
 
 	<h2 id="widget">ConversationWidget</h2>
 	<p>
-		The widget packages the target field, start and stop control, spectrum, transcript, text
+		The widget packages the target field, start and stop control, spectra, transcript, text
 		composer, feedback, playback volume, device selectors, and telemetry. Use it as a complete
 		surface or turn sections off and build around the parts you keep.
 	</p>
@@ -146,7 +146,7 @@
 				<tr
 					><td><code>showVisualizer</code></td><td><code>boolean</code></td><td
 						><code>true</code></td
-					><td>Show the live spectrum.</td></tr
+					><td>Show the live spectra.</td></tr
 				>
 				<tr
 					><td><code>showTranscript</code></td><td><code>boolean</code></td><td
@@ -302,9 +302,9 @@
 
 	<h2 id="accessibility">Accessibility</h2>
 	<p>
-		The visualizer exposes a text description that follows the session state instead of hiding the
-		canvas from assistive technology. The widget uses native buttons, inputs, selects, and a
-		labelled transcript log, and it respects <code>prefers-reduced-motion</code>. The default
+		The visualizer exposes a text description on its figure that follows the session state, while
+		the canvas is hidden from assistive technology. The widget uses native buttons, inputs, selects,
+		and a labelled transcript log, and it respects <code>prefers-reduced-motion</code>. The default
 		visualizer label can be replaced when the surrounding page already provides context.
 	</p>
 	<Callout tone="note" title="Do not rely on color alone">

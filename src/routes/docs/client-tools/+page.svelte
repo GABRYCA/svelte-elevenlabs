@@ -175,7 +175,7 @@ remove();`}
 
 	<h2 id="debugging">Debugging</h2>
 	<p>
-		Set <code>debug: true</code> to print redacted protocol diagnostics through
+		Set <code>debug: true</code> to print controller diagnostics through
 		<code>console.debug</code>. For a structured stream inside your own panel, use
 		<code>onDebug</code>
 		plus

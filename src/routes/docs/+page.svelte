@@ -6,7 +6,7 @@
 
 <DocsPage
 	title="Documentation"
-	summary="Everything you need to open a voice or text session with Svelte 5, keep the API key on the server, and release every browser resource on the way out."
+	summary="Everything you need to open a voice or text session with Svelte 5, keep the API key on the server, and release its browser resources on the way out."
 	toc={[
 		{ id: 'what-this-is', label: 'What this is' },
 		{ id: 'what-you-get', label: 'What you get' },
@@ -24,13 +24,17 @@
 		The package is not an official ElevenLabs SDK. It follows the public Conversational AI WebSocket
 		protocol, exposes a typed surface, and reports failures with stable error codes instead of
 		leaving a silent dead line. The included SvelteKit showcase in this repository is a working
-		reference for every feature described here.
+		reference for the core session flow described here.
 	</p>
 
 	<dl class="docs-facts">
 		<div>
-			<dt>Runtime</dt>
-			<dd>Svelte 5 state</dd>
+			<dt>Platforms</dt>
+			<dd>Browser UI / server on Node 22.17+ or Bun 1.4+</dd>
+		</div>
+		<div>
+			<dt>Reactivity</dt>
+			<dd>Svelte 5 runes</dd>
 		</div>
 		<div>
 			<dt>Transport</dt>
@@ -77,8 +81,8 @@
 			handling, feedback, typed turns, and contextual updates.
 		</li>
 		<li>
-			<strong>Optional UI.</strong> A live spectrum and a complete conversation widget ship in the same
-			package, both driven by a controller you already own.
+			<strong>Optional UI.</strong> Live spectra and a complete conversation widget ship in the same package,
+			both driven by a conversation controller.
 		</li>
 	</ul>
 
@@ -94,8 +98,8 @@
 		<li>
 			<p>
 				<strong>The controller runs the session.</strong> It resolves the target, prepares audio inside
-				the user gesture, fetches a signed URL when asked, opens the socket, negotiates formats, and reduces
-				protocol events into Svelte state.
+				the user gesture when needed, fetches a signed URL when asked, opens the socket, negotiates formats,
+				and reduces protocol events into Svelte state and derived values.
 			</p>
 		</li>
 		<li>
@@ -109,9 +113,9 @@
 
 	<Callout tone="note" title="Browser first">
 		<p>
-			Opening a session requires a browser, a secure context, and a user gesture. Imports and SSR
-			are safe, but the microphone and both audio contexts are created only when you call
-			<code>startConversation()</code>.
+			Opening a voice session requires a browser and a secure context, and should start from a user
+			gesture. Imports and SSR are safe, but the microphone and both audio contexts are created only
+			when you call <code>startConversation()</code>. Text only sessions skip the audio setup.
 		</p>
 	</Callout>
 

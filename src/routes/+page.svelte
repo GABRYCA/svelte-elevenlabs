@@ -8,7 +8,7 @@
 	const configuredAgentId = (PUBLIC_ELEVENLABS_AGENT_ID ?? '').trim();
 	const staticHosting = PUBLIC_HOSTING_MODE === 'static';
 	const installCommand = 'bun add svelte-elevenlabs';
-	const version = '0.4.0';
+	const version = '0.5.0';
 	const legalDisclaimer =
 		'This is an independent community project. Not affiliated with or endorsed by Eleven Labs Inc.';
 
@@ -279,7 +279,7 @@
 	<title>svelte-elevenlabs: give your interface a voice</title>
 	<meta
 		name="description"
-		content="An independent Svelte 5 library and starter kit for ElevenLabs Conversational AI, with signed URLs, low-latency audio, and zero-leak cleanup."
+		content="An independent Svelte 5 library and starter kit for ElevenLabs Conversational AI, with signed URLs, low-latency audio, and deterministic cleanup."
 	/>
 </svelte:head>
 
@@ -324,8 +324,8 @@
 
 				<p class="hero__lede">
 					A production-minded SvelteKit library for ElevenLabs Conversational AI. One controller
-					opens a low-latency audio line or a text-only channel, keeps state reactive, and closes
-					every resource when the component leaves the room.
+					opens a low-latency audio line or a text only channel, keeps state reactive, and closes
+					its resources when the component leaves the room.
 				</p>
 
 				<div class="hero__actions">
@@ -340,9 +340,9 @@
 				</div>
 
 				<ul class="hero__facts" aria-label="Library highlights">
-					<li><strong>Svelte 5</strong><span>state · SSR-safe</span></li>
+					<li><strong>Svelte 5</strong><span>runes · SSR-safe</span></li>
 					<li><strong>Signed URLs</strong><span>key stays server-side</span></li>
-					<li><strong>16 to 24 kHz</strong><span>PCM · AudioWorklet</span></li>
+					<li><strong>8 to 48 kHz</strong><span>PCM · AudioWorklet</span></li>
 				</ul>
 			</div>
 
@@ -363,12 +363,12 @@
 
 				<dl class="spec__list">
 					<div>
-						<dt>Runtime</dt>
-						<dd>Bun 1.4+ / Node 22.17+</dd>
+						<dt>Platforms</dt>
+						<dd>Browser UI / Node or Bun server</dd>
 					</div>
 					<div>
 						<dt>Reactivity</dt>
-						<dd>Svelte 5 state</dd>
+						<dd>Svelte 5 runes</dd>
 					</div>
 					<div>
 						<dt>Transport</dt>
@@ -405,7 +405,7 @@
 			<div class="page-wrap data-strip__inner">
 				<span>01 / LOW LATENCY</span>
 				<span>02 / BARGE-IN READY</span>
-				<span>03 / ZERO LEAKS</span>
+				<span>03 / CLEAN TEARDOWN</span>
 				<span>04 / BUN AND NODE</span>
 				<span class="data-strip__badge">MIT</span>
 			</div>
@@ -877,9 +877,9 @@
 							<div>
 								<h3>Schedule down</h3>
 								<p>
-									Agent chunks are decoded onto one playback clock. The
-									<code>AnalyserNode</code> feeds the spectrum; local or server barge-in flushes every
-									queued source with a 12 ms gain ramp.
+									Agent chunks are decoded onto one playback clock. Two <code>AnalyserNode</code> instances
+									feed the spectra; local or server barge-in flushes every queued source with a 12 ms
+									gain ramp.
 								</p>
 							</div>
 						</li>
@@ -889,7 +889,7 @@
 								<h3>Leave nothing running</h3>
 								<p>
 									An <code>$effect</code> teardown closes the socket, stops media tracks, disconnects
-									the graph, revokes worklet URLs, closes both contexts, and clears every timer.
+									the graph, revokes worklet URLs, closes both contexts, and clears its timers.
 								</p>
 							</div>
 						</li>
@@ -1007,8 +1007,8 @@
 								</button>
 							</div>
 							<p>
-								Peer dependency: Svelte 5. The library is ESM-only, publishes its TypeScript
-								surface, and builds with Node 22.17+ or Bun 1.4+.
+								Peer dependency: Svelte 5. The library is ESM-only and publishes its TypeScript
+								surface. The package tooling runs on Node 22.17+ or Bun 1.4+.
 							</p>
 						</div>
 
@@ -1048,7 +1048,7 @@ bun run dev</code
 					<div class="quickstart">
 						<div class="quickstart__top">
 							<span>Quickstart</span>
-							<span>SVELTE 5 / STATE</span>
+							<span>SVELTE 5 / RUNES</span>
 						</div>
 						<pre class="quickstart__code"><code
 								><span class="code-tag">&lt;script lang="ts"&gt;</span>
@@ -1066,7 +1066,7 @@ bun run dev</code
 							></pre>
 						<div class="quickstart__foot">
 							<p>
-								State is plain Svelte reactivity: read <code>conversation.status</code>,
+								Controller fields use Svelte 5 runes: read <code>conversation.status</code>,
 								<code>transcripts</code>, and <code>volume</code> directly in markup.
 							</p>
 							<a class="text-link text-link--light" href="#api">API map <span>↓</span></a>
@@ -1095,7 +1095,7 @@ bun run dev</code
 				<h2 id="api-title">Small surface.<br />Deep control.</h2>
 				<p class="section-head__copy">
 					The core controller exposes the reactive values and lifecycle methods the interface needs,
-					including text-only sessions, client tools, feedback, and device control. Everything else
+					including text only sessions, client tools, feedback, and device control. Everything else
 					is an optional extension.
 				</p>
 			</header>
@@ -1103,8 +1103,8 @@ bun run dev</code
 			<div class="api__grid">
 				<div class="api__panel">
 					<div class="api__panel-head">
-						<span>Reactive state</span>
-						<span>Read-only from markup</span>
+						<span>Controller state</span>
+						<span>Read in markup</span>
 					</div>
 					<dl class="api__list">
 						<div>
@@ -1121,7 +1121,7 @@ bun run dev</code
 						</div>
 						<div>
 							<dt><code>isTextOnly</code></dt>
-							<dd>The current session uses the text channel only.</dd>
+							<dd>The current or next session is text only.</dd>
 						</div>
 						<div>
 							<dt><code>volume</code></dt>
@@ -1205,7 +1205,7 @@ bun run dev</code
 			</div>
 
 			<p class="api__caveat">
-				<strong>Browser only.</strong> Call <code>useConversation</code> during component
+				<strong>Component lifecycle.</strong> Call <code>useConversation</code> during component
 				initialisation; it registers the cleanup effect. Use
 				<code>createConversation</code> when you need to own teardown yourself.
 			</p>

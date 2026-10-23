@@ -51,9 +51,9 @@
 		</li>
 	</ol>
 	<p>
-		The start promise never rejects. Read <code>error</code> and <code>errorCode</code> after it
-		settles, or pass <code>onError</code> when the controller is created. Calling start while a session
-		is active is a no-op.
+		Connection and audio failures populate <code>error</code> and <code>errorCode</code> instead of
+		rejecting the start promise. Read them after it settles, or pass <code>onError</code> when the controller
+		is created. Calling start while a session is active is a no-op.
 	</p>
 	<p>You can also end a session with the alias <code>endSession()</code>.</p>
 
@@ -101,7 +101,7 @@
 					></tr
 				>
 				<tr
-					><td><code>isTextOnly</code></td><td><code>boolean</code></td><td
+					><td><code>isTextOnly</code></td><td><code>boolean</code> (getter)</td><td
 						>Current session or next session runs without audio devices.</td
 					></tr
 				>
@@ -176,7 +176,7 @@
 				>
 				<tr
 					><td><code>interruptions</code></td><td><code>number</code></td><td
-						>Barge-ins counted once per signal.</td
+						>Barge-ins, deduplicated within one second.</td
 					></tr
 				>
 				<tr

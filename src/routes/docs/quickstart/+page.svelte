@@ -50,14 +50,14 @@
 {/each}`}
 	/>
 	<p>
-		<code>startConversation()</code> must run from a user gesture. Microphone permission and both
-		<code>AudioContext</code> instances are created inside that click, which keeps playback from being
-		suspended behind an autoplay gate.
+		For a voice session, call <code>startConversation()</code> from a user gesture. Microphone
+		permission and both <code>AudioContext</code> instances are created inside that click, which keeps
+		playback from being suspended behind an autoplay gate.
 	</p>
 	<p>
-		The promise resolves after the handshake metadata or after a start failure. It never rejects, so
-		<code>void conversation.startConversation()</code> is safe. Failures appear through
-		<code>error</code>, <code>errorCode</code>, and <code>onError</code>.
+		The promise resolves after the handshake metadata or after a start failure. Connection and audio
+		failures appear through <code>error</code>, <code>errorCode</code>, and <code>onError</code>
+		instead of a rejected promise, so <code>void conversation.startConversation()</code> is safe.
 	</p>
 
 	<h2 id="live-state">Live state</h2>
@@ -185,7 +185,8 @@ await conversation.startConversation(undefined, { signed: true });`}
 	/>
 	<p>
 		The widget includes the target field, visualizer, transcript, text composer, feedback buttons,
-		playback volume, device selectors, and telemetry. Every section can be turned off with a prop.
-		Read <a href={resolve('/docs/components')}>Components</a> for the full prop list and theme variables.
+		playback volume, device selectors, and telemetry. The target field, visualizer, transcript,
+		telemetry, composer, feedback, and audio controls each have a <code>show*</code> prop. Read
+		<a href={resolve('/docs/components')}>Components</a> for the full prop list and theme variables.
 	</p>
 </DocsPage>

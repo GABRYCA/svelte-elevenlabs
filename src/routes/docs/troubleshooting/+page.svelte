@@ -58,7 +58,7 @@
 				>
 				<tr
 					><td><code>invalid-target</code></td><td
-						>The target is not an agent id or a valid <code>ws://</code> or <code>wss://</code> URL.</td
+						>The target is not an agent id or a supported conversation URL.</td
 					><td>Use an <code>agent_</code> or <code>seng_</code> id, or a full WebSocket URL.</td
 					></tr
 				>
@@ -148,8 +148,8 @@
 	<ul>
 		<li>
 			<strong><code>invalid-target</code>:</strong> public ids start with <code>agent_</code> or
-			<code>seng_</code>. A full URL must use <code>ws://</code> or <code>wss://</code> (an
-			<code>http://</code> or <code>https://</code> URL is normalized).
+			<code>seng_</code>. A full URL can use <code>ws://</code> or <code>wss://</code>, and
+			<code>http://</code> or <code>https://</code> URLs are normalized to the matching WebSocket scheme.
 		</li>
 		<li>
 			<strong><code>signed-url-failed</code>:</strong> open the route directly in the browser with
@@ -269,9 +269,8 @@
 });`}
 	/>
 	<p>
-		The debug stream is redacted and does not include transcript text or credentials. The raw event
-		callbacks do include protocol payloads, so remove them before shipping or route them to a safe
-		development logger.
+		The debug stream omits transcript text and credentials. The raw event callbacks do include
+		protocol payloads, so remove them before shipping or route them to a safe development logger.
 	</p>
 	<Callout tone="warning" title="Do not paste secrets into an issue">
 		<p>

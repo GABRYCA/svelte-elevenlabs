@@ -36,7 +36,11 @@
 						>Optional. Needed only for the signed URL server route.</td
 					></tr
 				>
-				<tr><td>Browser</td><td>WebSocket, Web Audio, getUserMedia, and a secure context</td></tr>
+				<tr
+					><td>Browser</td><td
+						>WebSocket; for voice, Web Audio, getUserMedia, and a secure context</td
+					></tr
+				>
 				<tr><td>ElevenLabs</td><td>An agent id and, for signed mode, a workspace API key</td></tr>
 			</tbody>
 		</table>

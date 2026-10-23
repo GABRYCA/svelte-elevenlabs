@@ -112,10 +112,10 @@
 
 	<h2 id="playback">Playback path</h2>
 	<p>
-		Agent audio arrives as base64 chunks. The audio manager decodes PCM16 or µ-law, schedules each
-		chunk on one <code>AudioContext</code> clock, and exposes the result through an analyser node. Scheduling
-		on one clock avoids the gaps and overlaps that appear when every chunk starts its own source at the
-		current time.
+		Agent audio arrives as base64 chunks. The audio manager decodes PCM16 or µ-law, schedules
+		accepted chunks on one <code>AudioContext</code> clock, and exposes the result through an analyser
+		node. Scheduling on one clock avoids the gaps and overlaps that appear when every chunk starts its
+		own source at the current time.
 	</p>
 	<CodeBlock
 		lang="ts"

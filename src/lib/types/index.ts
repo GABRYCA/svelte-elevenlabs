@@ -801,7 +801,7 @@ export interface DisconnectDetails {
 	expected: boolean;
 }
 
-/** A low-level, redacted debug event. */
+/** A low-level debug event with safe metadata. */
 export interface DebugEvent {
 	/** Short machine-readable category, e.g. `socket:message`. */
 	kind: string;

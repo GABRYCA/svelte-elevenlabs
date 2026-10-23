@@ -25,7 +25,7 @@
 		subtitle?: string;
 		/** Show the target input. Defaults to `true`. */
 		showTargetInput?: boolean;
-		/** Show the live spectrum. Defaults to `true`. */
+		/** Show the live spectra. Defaults to `true`. */
 		showVisualizer?: boolean;
 		/** Show the transcript log. Defaults to `true`. */
 		showTranscript?: boolean;

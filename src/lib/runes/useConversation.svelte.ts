@@ -167,8 +167,8 @@ export class ConversationController {
 	private pageHideHandler = (): void => this.stopConversation();
 
 	/**
-	 * @param options - Defaults and callbacks. Every network and audio method
-	 * still works with an empty options object.
+	 * @param options - Defaults and callbacks. No options are required to
+	 * construct the controller; supply a target before starting.
 	 */
 	constructor(options: ConversationOptions = {}) {
 		this.options = options;
@@ -196,9 +196,9 @@ export class ConversationController {
 	 * @param startOptions - Set `signed: true` to exchange a public agent id for
 	 * a signed URL through `signedUrlEndpoint`.
 	 * @returns A promise that resolves after metadata negotiation or after a
-	 * start failure. It never rejects; failures are published through `error`,
-	 * `errorCode`, and `onError`, so `void conversation.startConversation(...)`
-	 * is safe without an extra catch.
+	 * start failure. Connection and audio failures are published through
+	 * `error`, `errorCode`, and `onError` instead of rejecting, so
+	 * `void conversation.startConversation(...)` is safe without an extra catch.
 	 */
 	async startConversation(
 		agentIdOrSignedUrl?: string,
@@ -683,7 +683,7 @@ export class ConversationController {
 	}
 
 	/**
-	 * Destroy the controller and release every resource.
+	 * Destroy the controller and release its resources.
 	 *
 	 * Called automatically by {@link useConversation}'s `$effect` teardown.
 	 * Idempotent.
@@ -1066,7 +1066,9 @@ export class ConversationController {
 				this.handleContextUsage(event);
 				return;
 			default:
-				this.debugLog('socket:event', 'Received an unhandled server event.', { event });
+				this.debugLog('socket:event', 'Received an unhandled server event.', {
+					type: String((event as { type?: unknown }).type ?? 'unknown')
+				});
 		}
 	}
 

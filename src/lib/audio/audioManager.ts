@@ -252,7 +252,7 @@ export async function listAudioDevices(): Promise<AudioDeviceInfo[]> {
  * @param samples - Source samples in the `-1..1` range.
  * @param sourceRate - Source sample rate in Hz.
  * @param targetRate - Destination sample rate in Hz.
- * @returns A new array at the target rate. Returns the input unchanged when rates match.
+ * @returns A new array at the target rate. Returns a copy when the rates match.
  */
 export function resampleLinear(
 	samples: Float32Array,

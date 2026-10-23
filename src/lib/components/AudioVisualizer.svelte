@@ -4,11 +4,11 @@
 	import type { ConversationController } from '../runes/useConversation.svelte.js';
 
 	/**
-	 * Props for the ready-made audio spectrum.
+	 * Props for the ready-made audio visualizer.
 	 *
-	 * The visualizer reads directly from the conversation's analyser nodes, so
-	 * it never synthesizes fake levels. When no session is active it renders a
-	 * quiet standby trace.
+	 * The visualizer reads the conversation's live analyser data, so it never
+	 * synthesizes fake levels. When no session is active it renders a static
+	 * standby grid and baseline.
 	 */
 	interface Props {
 		/** Controller created with `useConversation` or `createConversation`. */
@@ -27,7 +27,7 @@
 		conversation = null,
 		height = 176,
 		showLegend = true,
-		label = 'Live microphone and agent audio spectrum',
+		label = 'Live microphone and agent audio spectra',
 		class: className = ''
 	}: Props = $props();
 
@@ -36,14 +36,16 @@
 
 	let description = $derived(
 		!conversation || conversation.status === 'disconnected'
-			? 'Audio spectrum idle. No conversation is active.'
+			? 'Audio spectra idle. No conversation is active.'
 			: conversation.status === 'connecting'
-				? 'Audio spectrum waiting for the conversation to connect.'
+				? 'Audio spectra waiting for the conversation to connect.'
 				: conversation.isSpeaking
-					? 'The agent is speaking. Live output spectrum is shown.'
+					? 'The agent is speaking. Live microphone and agent spectra are shown.'
 					: conversation.isUserSpeaking
-						? 'The user is speaking. Live microphone spectrum is shown.'
-						: 'The conversation is connected and listening for audio.'
+						? 'The user is speaking. Live microphone and agent spectra are shown.'
+						: conversation.isTextOnly
+							? 'The conversation is connected in text only mode.'
+							: 'The conversation is connected and listening for audio.'
 	);
 
 	$effect(() => {
@@ -136,7 +138,7 @@
 			context.restore();
 		};
 
-		const drawSpectrum = (now: number): void => {
+		const drawSpectrum = (): void => {
 			resize();
 			if (!hasPainted || width <= 0 || drawHeight <= 0) {
 				drawGrid();
@@ -160,7 +162,6 @@
 			const center = drawHeight / 2;
 			const maxHeight = drawHeight * 0.45;
 			const smoothing = reducedMotion ? 0.75 : 0.32;
-			const time = now / 1000;
 
 			context.save();
 			context.beginPath();
@@ -170,14 +171,8 @@
 			for (let index = 0; index < bars; index += 1) {
 				const x = index * (barWidth + gap);
 
-				let inputValue = connected ? sampleBar(inputData, index) : 0;
-				let outputValue = connected ? sampleBar(outputData, index) : 0;
-
-				if (connected && !inputValue && !outputValue) {
-					const fleck = Math.max(0, Math.sin(index * 0.83 + time * 0.9)) * 0.006;
-					inputValue = fleck;
-					outputValue = fleck;
-				}
+				const inputValue = connected ? sampleBar(inputData, index) : 0;
+				const outputValue = connected ? sampleBar(outputData, index) : 0;
 
 				smoothedInput[index] += (inputValue - smoothedInput[index]) * smoothing;
 				smoothedOutput[index] += (outputValue - smoothedOutput[index]) * smoothing;
@@ -216,11 +211,11 @@
 			const minimumInterval = reducedMotion ? 160 : 33;
 			if (now - lastPaint < minimumInterval) return;
 			lastPaint = now;
-			drawSpectrum(now);
+			drawSpectrum();
 		};
 
 		resize();
-		untrack(() => drawSpectrum(0));
+		untrack(() => drawSpectrum());
 		frame = window.requestAnimationFrame(loop);
 
 		let observer: ResizeObserver | null = null;

@@ -2,9 +2,9 @@
 
 > **This is an independent community project. Not affiliated with or endorsed by ElevenLabs Inc.**
 
-A Svelte 5 library and SvelteKit 3 showcase for ElevenLabs Conversational AI. One controller opens a low-latency voice or text session, exposes reactive call state, streams PCM audio over a WebSocket, and releases every socket, media track, audio node, and timer when the component leaves the page.
+A Svelte 5 library and SvelteKit 3 showcase for ElevenLabs Conversational AI. One controller opens a low-latency voice or text session, exposes reactive call state, streams PCM audio over a WebSocket, and releases its sockets, media tracks, audio nodes, and timers on teardown.
 
-Runs on **Node 22.17 or newer** and **Bun 1.4 or newer**. Built with **Svelte 5**, **SvelteKit 3**, **TypeScript**, and **TailwindCSS 4**.
+The showcase server and package tooling run on **Node 22.17 or newer** and **Bun 1.4 or newer**. The controller and components run in the browser. Built with **Svelte 5**, **SvelteKit 3**, **TypeScript**, and **TailwindCSS 4**.
 
 - **Controller-first state:** `status`, `isSpeaking`, `isListening`, `volume`, `transcripts`, and `error` update directly in your markup.
 - **Signed URLs without leaks:** the API key stays in the SvelteKit server process. The browser receives only a short-lived URL.
@@ -15,20 +15,20 @@ Runs on **Node 22.17 or newer** and **Bun 1.4 or newer**. Built with **Svelte 5*
 - **Clean teardown:** `useConversation` registers an `$effect` teardown. Use `createConversation` when you want to own the lifecycle.
 - **Ready-made UI:** an analyser-driven `<AudioVisualizer>` and a complete `<ConversationWidget>` ship in the same package.
 - **Two hosting paths:** a safe static GitHub Pages demo with public agent ids, and a full Node or Bun server build with signed URL exchange.
-- **Typed public surface:** every exported interface and function carries JSDoc for editor IntelliSense.
+- **Typed public surface:** public types, helpers, and controller members carry JSDoc for editor IntelliSense.
 
 ## What it does
 
 `svelte-elevenlabs` connects a Svelte 5 component to an ElevenLabs Conversational AI agent over a WebSocket. It owns the browser side of one live session:
 
-- **Reactive session state.** `ConversationController` exposes connection status, speaking and listening flags, microphone and playback levels, transcripts, errors, latency, queue state, negotiated audio formats, context usage, VAD score, and device ids as Svelte state.
+- **Reactive session state.** `ConversationController` exposes connection status, speaking and listening flags, microphone and playback levels, transcripts, errors, latency, queue state, negotiated audio formats, context usage, VAD score, and device ids as Svelte state and derived values.
 - **Voice or text.** A session can capture microphone audio, play streamed agent audio, or run in text only mode. Text only sessions skip microphone permission and Web Audio contexts while keeping the same WebSocket protocol, transcripts, tools, and feedback.
-- **Local audio pipeline.** Capture uses an `AudioWorklet` with a `ScriptProcessor` fallback, a low-pass filter, linear resampling, and PCM16 base64 framing. Playback decodes PCM16 or G.711 µ-law and schedules every chunk on one `AudioContext` clock.
+- **Local audio pipeline.** Capture uses an `AudioWorklet` with a `ScriptProcessor` fallback, a low-pass filter, linear resampling, and PCM16 base64 framing. Playback decodes PCM16 or G.711 µ-law and schedules accepted chunks on one `AudioContext` clock.
 - **Conversation features.** Client tools, an MCP approval callback, typed user turns, contextual updates, feedback, user activity signals, audio alignment, agent tool events, guardrails, and context usage are part of the controller.
 - **Control over audio routing.** Select input and output devices, switch devices during a session, set playback gain, mute the microphone, and read analyser data for custom visuals.
 - **Svelte lifecycle integration.** `useConversation` registers an `$effect` teardown that closes the socket, stops media tracks, clears timers, aborts signed URL requests, and closes audio contexts. `createConversation` is available for stores, tests, and custom lifecycle code.
 - **Provider and tools.** `ConversationProvider` shares one controller through Svelte context, and `useConversationClientTool` registers a component scoped client tool that is removed on unmount.
-- **Ready-made UI.** `<AudioVisualizer>` and `<ConversationWidget>` consume the same controller. The widget supports voice, text, feedback, playback volume, device selection, transcripts, latency history, queue state, and theming through CSS custom properties.
+- **Ready-made UI.** `<AudioVisualizer>` and `<ConversationWidget>` consume the same controller. The widget supports voice, text, feedback, playback volume, device selection, transcripts, queue state, and theming through CSS custom properties.
 - **Safe signed URLs.** The included SvelteKit route validates `agent_` and `seng_` ids, sets `Cache-Control: no-store`, and keeps `ELEVENLABS_API_KEY` on the server. The static Pages build removes the route and disables signed mode in the UI.
 
 The repository also contains a runnable SvelteKit 3 showcase in `src/routes`. It demonstrates the controller, signed and public connection modes, voice and text sessions, device controls, feedback, and the diagnostic console.
@@ -54,7 +54,7 @@ The showcase and docs share a light and dark theme. The first visit follows the 
 | Svelte      | **5.x** peer dependency                                                     |
 | SvelteKit   | **3.x** for the included showcase. The controller itself only needs Svelte. |
 | TypeScript  | Strict mode with no implicit `any`                                          |
-| Browser     | WebSocket, Web Audio, `getUserMedia`, and a secure context                  |
+| Browser     | WebSocket; for voice, Web Audio, `getUserMedia`, and a secure context       |
 | ElevenLabs  | An agent id and, for signed mode, a workspace API key                       |
 
 The microphone requires **HTTPS or localhost**. Browsers block `getUserMedia` in insecure contexts. The library reports this as a clear `insecure-context` error instead of failing silently.
@@ -110,7 +110,7 @@ Call `useConversation` during component initialisation so its cleanup effect can
 
 ### Text only sessions
 
-Set `textOnly` on the controller, or pass it per start call. Text only sessions skip microphone permission and Web Audio setup, but still need a browser and an open WebSocket. Start them from a user gesture like a voice session.
+Set `textOnly` on the controller, or pass it per start call. Text only sessions skip microphone permission and Web Audio setup, but still need a browser and an open WebSocket.
 
 ```svelte
 <script lang="ts">
@@ -355,55 +355,55 @@ const conversation = useConversation({
 });
 ```
 
-| Option                     | Type                                                   | Default                   | Purpose                                      |
-| -------------------------- | ------------------------------------------------------ | ------------------------- | -------------------------------------------- |
-| `agentId`                  | `string`                                               | -                         | Default public agent id.                     |
-| `signedUrl`                | `string`                                               | -                         | Default signed WebSocket URL.                |
-| `signedUrlEndpoint`        | `string`                                               | `'/api/signed-url'`       | Same-origin route used by signed mode.       |
-| `origin`                   | `string`                                               | `wss://api.elevenlabs.io` | WebSocket origin for public ids.             |
-| `serverLocation`           | `"us" \| "eu-residency" \| "in-residency" \| "global"` | `"us"`                    | Data residency used for public ids.          |
-| `connectionType`           | `"websocket" \| "webrtc"`                              | `"websocket"`             | Only WebSocket is implemented.               |
-| `textOnly`                 | `boolean`                                              | `false`                   | Skip microphone and audio contexts.          |
-| `dynamicVariables`         | `Record<string, string \| number \| boolean>`          | -                         | Values available to the agent prompt.        |
-| `userId`                   | `string`                                               | -                         | Stable end-user id for analytics and memory. |
-| `overrides`                | `ConversationConfigOverride`                           | -                         | Per-session prompt, TTS, and ASR overrides.  |
-| `clientTools`              | `Record<string, ClientToolHandler>`                    | -                         | Named client tool handlers.                  |
-| `onClientToolCall`         | `(call) => string \| object \| Promise<...>`           | -                         | Fallback handler for unmatched client tools. |
-| `inputDeviceId`            | `string`                                               | system default            | Preferred microphone.                        |
-| `outputDeviceId`           | `string`                                               | system default            | Preferred speaker, when supported.           |
-| `micMuted`                 | `boolean`                                              | `false`                   | Start with the microphone muted.             |
-| `outputVolume`             | `number`                                               | `1`                       | Initial playback gain, `0..1`.               |
-| `inputChunkDurationMs`     | `number`                                               | `100`                     | Mic chunk size, clamped to 50 to 250 ms.     |
-| `interruptOnUserSpeech`    | `boolean`                                              | `true`                    | Local VAD flushes playback when you speak.   |
-| `vadThreshold`             | `number`                                               | `0.075`                   | Normalized RMS threshold for local VAD.      |
-| `maxTranscripts`           | `number`                                               | `250`                     | Maximum retained transcript entries.         |
-| `resetTranscriptsOnStart`  | `boolean`                                              | `true`                    | Clear the log when a new session starts.     |
-| `autoCleanup`              | `boolean`                                              | `true`                    | Register the `$effect` teardown.             |
-| `debug`                    | `boolean`                                              | `false`                   | Print redacted protocol diagnostics.         |
-| `onStatusChange`           | `(status) => void`                                     | -                         | Connection lifecycle callback.               |
-| `onConnect`                | `({ conversationId }) => void`                         | -                         | Handshake metadata is ready.                 |
-| `onTranscript`             | `(message) => void`                                    | -                         | Called on transcript create or update.       |
-| `onMessage`                | `(message) => void`                                    | -                         | Alias for `onTranscript`.                    |
-| `onModeChange`             | `(mode) => void`                                       | -                         | High-level mode transitions.                 |
-| `onCanSendFeedbackChange`  | `(canSendFeedback) => void`                            | -                         | Feedback availability changes.               |
-| `onVadScore`               | `(score) => void`                                      | -                         | Server side voice activity score.            |
-| `onAudioAlignment`         | `(alignment) => void`                                  | -                         | Character timing for an audio chunk.         |
-| `onContextUsage`           | `(usage) => void`                                      | -                         | LLM context window usage.                    |
-| `onMCPToolCall`            | `(call) => void`                                       | -                         | MCP tool lifecycle updates.                  |
-| `onMCPToolApprovalRequest` | `(call, context) => boolean \| Promise<boolean>`       | -                         | Decide an MCP approval request.              |
-| `onGuardrailTriggered`     | `(event) => void`                                      | -                         | Guardrail notifications.                     |
-| `onError`                  | `(error: ConversationError) => void`                   | -                         | Human-readable error callback.               |
-| `onLatency`                | `(ms) => void`                                         | -                         | Time-to-first-audio measurement.             |
-| `onInterruption`           | `() => void`                                           | -                         | Local or server barge-in.                    |
-| `onDisconnect`             | `(details) => void`                                    | -                         | WebSocket close details.                     |
-| `onConversationId`         | `(id) => void`                                         | -                         | Negotiated ElevenLabs conversation id.       |
-| `onDebug`                  | `(event: DebugEvent) => void`                          | -                         | Structured, redacted debug events.           |
+| Option                     | Type                                                   | Default                     | Purpose                                                   |
+| -------------------------- | ------------------------------------------------------ | --------------------------- | --------------------------------------------------------- |
+| `agentId`                  | `string`                                               | -                           | Default public agent id.                                  |
+| `signedUrl`                | `string`                                               | -                           | Default signed WebSocket URL.                             |
+| `signedUrlEndpoint`        | `string`                                               | `'/api/signed-url'`         | Same-origin route used by signed mode.                    |
+| `origin`                   | `string`                                               | `wss://api.elevenlabs.io`   | WebSocket origin for public ids.                          |
+| `serverLocation`           | `"us" \| "eu-residency" \| "in-residency" \| "global"` | `"us"`                      | Data residency used for public ids.                       |
+| `connectionType`           | `"websocket" \| "webrtc"`                              | `"websocket"`               | Only WebSocket is implemented.                            |
+| `textOnly`                 | `boolean`                                              | `false`                     | Skip microphone and audio contexts.                       |
+| `dynamicVariables`         | `Record<string, string \| number \| boolean>`          | -                           | Values available to the agent prompt.                     |
+| `userId`                   | `string`                                               | -                           | Stable end-user id for analytics and memory.              |
+| `overrides`                | `ConversationConfigOverride`                           | -                           | Per-session prompt, TTS, and ASR overrides.               |
+| `clientTools`              | `Record<string, ClientToolHandler>`                    | -                           | Named client tool handlers.                               |
+| `onClientToolCall`         | `(call) => string \| object \| Promise<...>`           | -                           | Fallback handler for unmatched client tools.              |
+| `inputDeviceId`            | `string`                                               | system default              | Preferred microphone.                                     |
+| `outputDeviceId`           | `string`                                               | system default              | Preferred speaker, when supported.                        |
+| `micMuted`                 | `boolean`                                              | `false`                     | Start with the microphone muted.                          |
+| `outputVolume`             | `number`                                               | `1`                         | Initial playback gain, `0..1`.                            |
+| `inputChunkDurationMs`     | `number`                                               | `100`                       | Mic chunk size, clamped to 50 to 250 ms.                  |
+| `interruptOnUserSpeech`    | `boolean`                                              | `true`                      | Local VAD flushes playback when you speak.                |
+| `vadThreshold`             | `number`                                               | `0.075`                     | Normalized RMS threshold for local VAD.                   |
+| `maxTranscripts`           | `number`                                               | `250`                       | Maximum retained transcript entries.                      |
+| `resetTranscriptsOnStart`  | `boolean`                                              | `true`                      | Clear the log when a new session starts.                  |
+| `autoCleanup`              | `boolean`                                              | `true` in `useConversation` | Register the `$effect` teardown.                          |
+| `debug`                    | `boolean`                                              | `false`                     | Print diagnostics without transcript text or credentials. |
+| `onStatusChange`           | `(status) => void`                                     | -                           | Connection lifecycle callback.                            |
+| `onConnect`                | `({ conversationId }) => void`                         | -                           | Handshake metadata is ready.                              |
+| `onTranscript`             | `(message) => void`                                    | -                           | Called on transcript create or update.                    |
+| `onMessage`                | `(message) => void`                                    | -                           | Alias for `onTranscript`.                                 |
+| `onModeChange`             | `(mode) => void`                                       | -                           | High-level mode transitions.                              |
+| `onCanSendFeedbackChange`  | `(canSendFeedback) => void`                            | -                           | Feedback availability changes.                            |
+| `onVadScore`               | `(score) => void`                                      | -                           | Server side voice activity score.                         |
+| `onAudioAlignment`         | `(alignment) => void`                                  | -                           | Character timing for an audio chunk.                      |
+| `onContextUsage`           | `(usage) => void`                                      | -                           | LLM context window usage.                                 |
+| `onMCPToolCall`            | `(call) => void`                                       | -                           | MCP tool lifecycle updates.                               |
+| `onMCPToolApprovalRequest` | `(call, context) => boolean \| Promise<boolean>`       | -                           | Decide an MCP approval request.                           |
+| `onGuardrailTriggered`     | `(event) => void`                                      | -                           | Guardrail notifications.                                  |
+| `onError`                  | `(error: ConversationError) => void`                   | -                           | Human-readable error callback.                            |
+| `onLatency`                | `(ms) => void`                                         | -                           | Time-to-first-audio measurement.                          |
+| `onInterruption`           | `() => void`                                           | -                           | Local or server barge-in.                                 |
+| `onDisconnect`             | `(details) => void`                                    | -                           | WebSocket close details.                                  |
+| `onConversationId`         | `(id) => void`                                         | -                           | Negotiated ElevenLabs conversation id.                    |
+| `onDebug`                  | `(event: DebugEvent) => void`                          | -                           | Structured debug events with safe metadata.               |
 
 The type surface also includes callbacks for streaming agent response parts, response corrections, completion, response metadata, keep-alive pings, agent tool requests and responses, MCP connection status, conversation metadata, incoming and outgoing protocol events, unhandled client tools, and audio chunks.
 
 ### `ConversationController`
 
-All fields are Svelte 5 reactive state.
+These fields are Svelte state or derived values. `isTextOnly` is a getter. Treat them as read-only and change state through the methods below.
 
 | Member                                     | Type                                                                     | Description                                   |
 | ------------------------------------------ | ------------------------------------------------------------------------ | --------------------------------------------- |
@@ -434,27 +434,27 @@ All fields are Svelte 5 reactive state.
 | `outputGain`                               | `number`                                                                 | Playback gain, `0..1`.                        |
 | `inputDeviceId` and `outputDeviceId`       | `string \| null`                                                         | Selected audio devices.                       |
 
-| Method                                      | Description                                                                                                                                                                                                 |
-| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `startConversation(target?, startOptions?)` | Starts a public agent, signed URL, or configured default. `startOptions.signed` requests a signed URL, and `startOptions.textOnly` overrides the controller mode. Never rejects; failures populate `error`. |
-| `stopConversation()` and `endSession()`     | Closes the socket, stops the mic, flushes playback, closes contexts, clears timers, and keeps transcripts.                                                                                                  |
-| `toggleMute()` and `setMuted(muted)`        | Suppress outgoing chunks without closing the device.                                                                                                                                                        |
-| `setVolume(volume)`                         | Sets playback gain from a number or `{ volume }`. Values are clamped to `0..1`.                                                                                                                             |
-| `getInputVolume()` and `getOutputVolume()`  | Read the latest normalized levels.                                                                                                                                                                          |
-| `sendContextualUpdate(text, contextId?)`    | Adds non-interrupting context for the next agent turn.                                                                                                                                                      |
-| `sendUserMessage(text)`                     | Sends a typed user turn over the same socket.                                                                                                                                                               |
-| `sendFeedback(like, eventId?)`              | Sends like or dislike feedback for an agent response.                                                                                                                                                       |
-| `sendUserActivity()`                        | Sends at most one activity frame per second.                                                                                                                                                                |
-| `sendMCPToolApprovalResult(id, approved)`   | Answers an MCP approval request manually.                                                                                                                                                                   |
-| `registerClientTool(name, handler)`         | Registers a named tool and returns an unregister function.                                                                                                                                                  |
-| `changeInputDevice(id?)`                    | Switches the microphone during a voice session.                                                                                                                                                             |
-| `changeOutputDevice(id?)`                   | Routes playback to a speaker, when the browser supports it.                                                                                                                                                 |
-| `listAudioDevices()`                        | Lists available audio input and output devices.                                                                                                                                                             |
-| `getInputFrequencyData(target?)`            | Reads microphone analyser bins (0 to 255) for custom visuals.                                                                                                                                               |
-| `getOutputFrequencyData(target?)`           | Reads agent playback analyser bins.                                                                                                                                                                         |
-| `clearTranscripts()`                        | Clears the local log only.                                                                                                                                                                                  |
-| `clearError()`                              | Dismisses the current error banner.                                                                                                                                                                         |
-| `destroy()`                                 | Idempotent teardown. Called automatically by `useConversation`.                                                                                                                                             |
+| Method                                      | Description                                                                                                                                                                                                                            |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `startConversation(target?, startOptions?)` | Starts a public agent, signed URL, or configured default. `startOptions.signed` requests a signed URL, and `startOptions.textOnly` overrides the controller mode. Connection and audio failures populate `error` instead of rejecting. |
+| `stopConversation()` and `endSession()`     | Closes the socket, stops the mic, flushes playback, closes contexts, clears timers, and keeps transcripts.                                                                                                                             |
+| `toggleMute()` and `setMuted(muted)`        | Suppress outgoing chunks without closing the device.                                                                                                                                                                                   |
+| `setVolume(volume)`                         | Sets playback gain from a number or `{ volume }`. Values are clamped to `0..1`.                                                                                                                                                        |
+| `getInputVolume()` and `getOutputVolume()`  | Read the latest normalized levels.                                                                                                                                                                                                     |
+| `sendContextualUpdate(text, contextId?)`    | Adds non-interrupting context for the next agent turn.                                                                                                                                                                                 |
+| `sendUserMessage(text)`                     | Sends a typed user turn over the same socket.                                                                                                                                                                                          |
+| `sendFeedback(like, eventId?)`              | Sends like or dislike feedback for an agent response.                                                                                                                                                                                  |
+| `sendUserActivity()`                        | Sends at most one activity frame per second.                                                                                                                                                                                           |
+| `sendMCPToolApprovalResult(id, approved)`   | Answers an MCP approval request manually.                                                                                                                                                                                              |
+| `registerClientTool(name, handler)`         | Registers a named tool and returns an unregister function.                                                                                                                                                                             |
+| `changeInputDevice(id?)`                    | Switches the microphone during a voice session.                                                                                                                                                                                        |
+| `changeOutputDevice(id?)`                   | Routes playback to a speaker, when the browser supports it.                                                                                                                                                                            |
+| `listAudioDevices()`                        | Lists available audio input and output devices.                                                                                                                                                                                        |
+| `getInputFrequencyData(target?)`            | Reads microphone analyser bins (0 to 255) for custom visuals.                                                                                                                                                                          |
+| `getOutputFrequencyData(target?)`           | Reads agent playback analyser bins.                                                                                                                                                                                                    |
+| `clearTranscripts()`                        | Clears the local log only.                                                                                                                                                                                                             |
+| `clearError()`                              | Dismisses the current error banner.                                                                                                                                                                                                    |
+| `destroy()`                                 | Idempotent teardown. Called automatically by `useConversation`.                                                                                                                                                                        |
 
 ### `createConversation(options?)`
 
@@ -501,7 +501,7 @@ Registers a component scoped client tool on the nearest provider. The registrati
 
 ### Audio helpers
 
-All helpers are exported and pure unless they take an `AudioManager` instance.
+All helpers are exported. The codec, resampling, and format parsers are pure. `listAudioDevices` reads browser devices, and `AudioManager` owns the browser audio graph.
 
 ```ts
 import {
@@ -546,9 +546,9 @@ import {
 />
 ```
 
-`<AudioVisualizer>` reads real analyser data from the controller and draws a dual **you / agent** spectrum with DPR scaling, ResizeObserver sizing, and a reduced-motion path. It does not synthesize audio levels.
+`<AudioVisualizer>` reads real analyser data from the controller and draws both the microphone and agent spectra with DPR scaling, ResizeObserver sizing, and a reduced-motion path. It does not synthesize audio levels.
 
-`<ConversationWidget>` is self-contained when given an `agentId`, or it can mirror a `controller` you already created. It includes the target field, public or signed start flow, live status, transcript, typed messages, feedback buttons, playback volume, device selectors, mute, telemetry, latency history, and clear or dismiss controls. Set `textOnly` on a widget that owns its controller to skip audio setup. Theme it through CSS custom properties:
+`<ConversationWidget>` is self-contained when given an `agentId`, or it can mirror a `controller` you already created. It includes the target field, public or signed start flow, live status, transcript, typed messages, feedback buttons, playback volume, device selectors, mute, telemetry, and clear or dismiss controls. Set `textOnly` on a widget that owns its controller to skip audio setup. Theme it through CSS custom properties:
 
 ```css
 .my-line {
@@ -654,7 +654,7 @@ src/
 
 ## Publishing
 
-The package version is `0.4.0`. `prepack` runs `svelte-kit sync`, `svelte-package`, and `publint`, so `dist` is rebuilt from source before every publish.
+The package version is `0.5.0`. `prepack` runs `svelte-kit sync`, `svelte-package`, and `publint`, so `dist` is rebuilt from source before every publish.
 
 ```sh
 bun run prepack
@@ -672,7 +672,7 @@ When you push a version bump to `main`, the release workflow creates the `v<vers
 2. Require an authenticated session or rate limiting on `/api/signed-url` in production.
 3. Prefer signed URLs for non-public agents.
 4. Serve over HTTPS or localhost so microphone access is available.
-5. The library logs actionable errors; it does not log signed URLs, tokens, or transcript text. `onTranscript` is opt-in.
+5. Debug diagnostics are opt-in and do not log signed URLs, tokens, or transcript text. `onTranscript`, `onIncomingEvent`, and `onOutgoingEvent` receive raw data only when you opt in.
 6. Build GitHub Pages with `PUBLIC_HOSTING_MODE=static`. The signed URL route is not part of that artifact.
 7. Treat public agent ids as public. Do not put private agent configuration in the static build.
 

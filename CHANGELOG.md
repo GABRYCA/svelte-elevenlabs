@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-23
+
 ### Added
 
 - Documentation section at `/docs` with start here pages, task guides, a searchable sidebar, copyable code samples, previous and next links, and a full API reference.
@@ -19,12 +21,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - The showcase now offers a documentation path that works in the Node, Bun, and static Pages builds through `resolve()` and `PAGES_BASE_PATH`.
-- Public copy now says controller or Svelte 5 state instead of rune, while internal module paths stay unchanged.
+- Public copy now distinguishes supported platforms from Svelte 5 reactivity and describes controller values as state or derived values.
 - Author display text now reads AnonymousGCA. Repository and profile URLs still use the GABRYCA account.
+- Bumped the package version from `0.4.0` to `0.5.0`.
 
 ### Fixed
 
 - The docs sidebar filter now leaves clear space below the search field and above the first group label.
+- Corrected documentation and JSDoc claims about controller state, barge-in counting, widget telemetry, visualizer behavior, platform scope, browser requirements, supported URL schemes, start promise failure reporting, audio rate range, and helper return values.
+- Removed the animated synthetic fleck the visualizer drew when a connected session had no analyser levels.
+- Debug diagnostics now log only the event type for unhandled server events, and the signed URL route logs only response keys when the upstream payload is unexpected.
 
 ## [0.4.0] - 2026-10-21
 
