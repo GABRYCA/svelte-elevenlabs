@@ -16,6 +16,10 @@
 	});
 </script>
 
+<svelte:head>
+	<link rel="describedby" href={resolve('/llms.txt')} type="text/plain" />
+</svelte:head>
+
 <a class="docs-skip" href="#docs-content">Skip to documentation</a>
 
 <div class="docs-shell">
@@ -77,6 +81,10 @@
 				<a href={resolve('/')}>Showcase</a>
 				<a href={resolve('/docs/quickstart')}>Quickstart</a>
 				<a href={resolve('/docs/reference')}>API reference</a>
+				<a href={resolve('/llms.txt')} title="Machine readable documentation index">llms.txt</a>
+				<a href={resolve('/llms-full.txt')} title="Complete machine readable documentation">
+					llms-full.txt
+				</a>
 				<a href="https://github.com/GABRYCA/svelte-elevenlabs" rel="noreferrer">GitHub ↗</a>
 			</nav>
 		</div>

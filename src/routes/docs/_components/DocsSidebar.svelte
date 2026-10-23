@@ -57,6 +57,10 @@
 	<div class="docs-nav__meta">
 		<span>Version {docsVersion}</span>
 		<span>Community build</span>
+		<a href={resolve('/llms.txt')} title="Machine readable documentation index">llms.txt</a>
+		<a href={resolve('/llms-full.txt')} title="Complete machine readable documentation">
+			llms-full.txt
+		</a>
 		<a href="https://github.com/GABRYCA/svelte-elevenlabs" rel="noreferrer">Source on GitHub</a>
 	</div>
 </nav>

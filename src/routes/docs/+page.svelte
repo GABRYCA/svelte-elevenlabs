@@ -11,6 +11,7 @@
 		{ id: 'what-this-is', label: 'What this is' },
 		{ id: 'what-you-get', label: 'What you get' },
 		{ id: 'how-it-fits', label: 'How it fits together' },
+		{ id: 'for-ai-tools', label: 'For AI tools' },
 		{ id: 'start-here', label: 'Start here' }
 	]}
 >
@@ -118,6 +119,17 @@
 			when you call <code>startConversation()</code>. Text only sessions skip the audio setup.
 		</p>
 	</Callout>
+
+	<h2 id="for-ai-tools">For AI tools</h2>
+	<p>
+		The documentation is also published as plain Markdown.
+		<a href={resolve('/llms.txt')}><code>llms.txt</code></a> is a compact index of every page, and
+		<a href={resolve('/llms-full.txt')}><code>llms-full.txt</code></a> contains the complete
+		reference with options, controller fields, error codes, and deployment notes. The index is
+		mirrored at
+		<a href={resolve('/docs/llms.txt')}><code>/docs/llms.txt</code></a> for agents that look beside the
+		docs they are reading.
+	</p>
 
 	<h2 id="start-here">Start here</h2>
 	<div class="docs-index">

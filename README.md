@@ -45,6 +45,16 @@ Run `bun run dev` and open `http://localhost:5173/docs` to read it locally. The 
 
 The showcase and docs share a light and dark theme. The first visit follows the system color scheme, the toggle in the masthead or docs top bar saves a choice, and both palettes keep the warm paper and chassis character. Documentation code samples are tokenized for TypeScript, Svelte, shell, CSS, JSON, and HTTP. The right rail marks the section currently in view and moves between entries smoothly, and each docs article enters with a short, reduced-motion-aware transition.
 
+### Documentation for language models
+
+The same material is published as plain Markdown for coding agents and other language model tools:
+
+- `/llms.txt` is a compact index with a short summary and links to every guide.
+- `/llms-full.txt` is the complete reference, including options, controller fields, methods, error codes, and deployment notes.
+- `/docs/llms.txt` mirrors the compact index under the docs path.
+
+The files are prerendered, so they exist in the Node, Bun, and static Pages builds. Absolute links follow `PAGES_BASE_PATH`, and the reference version is read from `package.json`.
+
 ## Requirements
 
 | Requirement | Version or note                                                             |
@@ -654,7 +664,7 @@ src/
 
 ## Publishing
 
-The package version is `0.5.0`. `prepack` runs `svelte-kit sync`, `svelte-package`, and `publint`, so `dist` is rebuilt from source before every publish.
+The package version is `0.5.1`. `prepack` runs `svelte-kit sync`, `svelte-package`, and `publint`, so `dist` is rebuilt from source before every publish.
 
 ```sh
 bun run prepack

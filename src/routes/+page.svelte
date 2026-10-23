@@ -8,9 +8,9 @@
 	const configuredAgentId = (PUBLIC_ELEVENLABS_AGENT_ID ?? '').trim();
 	const staticHosting = PUBLIC_HOSTING_MODE === 'static';
 	const installCommand = 'bun add svelte-elevenlabs';
-	const version = '0.5.0';
+	const version = '0.5.1';
 	const legalDisclaimer =
-		'This is an independent community project. Not affiliated with or endorsed by Eleven Labs Inc.';
+		'This is an independent community project. Not affiliated with or endorsed by ElevenLabs Inc.';
 
 	const conversation = useConversation({
 		agentId: configuredAgentId,
@@ -279,8 +279,9 @@
 	<title>svelte-elevenlabs: give your interface a voice</title>
 	<meta
 		name="description"
-		content="An independent Svelte 5 library and starter kit for ElevenLabs Conversational AI, with signed URLs, low-latency audio, and deterministic cleanup."
+		content="An independent Svelte 5 library for ElevenLabs Conversational AI: signed URLs, low-latency audio, deterministic cleanup, and a SvelteKit showcase."
 	/>
+	<link rel="describedby" href={resolve('/llms.txt')} type="text/plain" />
 </svelte:head>
 
 <a class="skip-link" href="#console">Skip to the live console</a>
@@ -323,9 +324,9 @@
 				</h1>
 
 				<p class="hero__lede">
-					A production-minded SvelteKit library for ElevenLabs Conversational AI. One controller
-					opens a low-latency audio line or a text only channel, keeps state reactive, and closes
-					its resources when the component leaves the room.
+					A Svelte 5 controller for ElevenLabs Conversational AI, with a SvelteKit showcase in this
+					repository. It opens the socket, negotiates the audio format, turns protocol events into
+					reactive state, and releases every browser resource when the session ends.
 				</p>
 
 				<div class="hero__actions">
@@ -394,7 +395,7 @@
 				</div>
 
 				<p class="spec__note">
-					An unofficial, community-maintained bridge. No telemetry. No hidden client key.
+					Unofficial and community maintained. No telemetry. The API key stays on the server.
 				</p>
 
 				<span class="spec__stamp" aria-hidden="true">Community<br />build</span>
@@ -417,11 +418,11 @@
 				<h2 id="console-title">Talk to the machine.</h2>
 				<p class="section-head__copy">
 					{#if staticHosting}
-						This static demo connects with public agent ids. Paste one, press start, and speak. The
-						full local build adds the signed URL server route.
+						This static build connects with public agent ids. Paste one, press start, and the
+						browser opens the audio line. Signed URLs require the server build.
 					{:else}
-						Point the console at a public agent id or let the server mint a signed URL. Your
-						microphone opens only after you press start.
+						Point the console at a public agent id or let the server mint a signed URL. The
+						microphone stays closed until you press start.
 					{/if}
 				</p>
 			</header>
@@ -830,7 +831,7 @@
 					>
 					<span class="console__footer-spacer"></span>
 					<span>SEL-01</span>
-					<span class="console__footer-dim">No client key</span>
+					<span class="console__footer-dim">No browser key</span>
 				</div>
 			</div>
 		</section>
@@ -983,9 +984,8 @@
 					<p class="section-head__tag"><span>03</span> Install and start</p>
 					<h2 id="install-title">Five lines to<br />a first sentence.</h2>
 					<p class="section-head__copy">
-						Add the package, give the controller an agent, and let Svelte handle the rest. The
-						static demo uses public agent ids. The local full build adds signed URL exchange with
-						one server secret.
+						Install the package, hand the controller an agent id, and start a session. Public ids
+						work anywhere. Signed mode adds one server route and keeps the key out of the bundle.
 					</p>
 				</header>
 
@@ -1215,13 +1215,13 @@ bun run dev</code
 			<div class="page-wrap community__grid">
 				<div>
 					<p class="section-head__tag"><span>05</span> Community file</p>
-					<h2 id="community-title">Independent<br />by design.</h2>
+					<h2 id="community-title">Built against<br />the public protocol.</h2>
 				</div>
 				<div class="community__copy">
 					<p class="community__lede">
-						This is an independent library built in public, not an official SDK. It tracks the
-						public Conversational AI protocol, documents its failure modes, and favors a clear error
-						over a silent dead line.
+						This is an independent library, not an official SDK. It follows the Conversational AI
+						WebSocket protocol, documents its failure modes, and prefers a clear error over a silent
+						dead line.
 					</p>
 					<p class="community__disclaimer">{legalDisclaimer}</p>
 					<div class="community__meta">
@@ -1250,6 +1250,7 @@ bun run dev</code
 				<a href="#install">Install</a>
 				<a href="#api">API</a>
 				<a href={resolve('/docs')}>Docs</a>
+				<a href={resolve('/llms.txt')} title="Machine readable documentation index">llms.txt</a>
 				<a href="https://github.com/GABRYCA/svelte-elevenlabs" rel="noreferrer">GitHub ↗</a>
 				<a href="https://elevenlabs.io/docs/conversational-ai/overview" rel="noreferrer">
 					ElevenLabs docs ↗
@@ -1292,7 +1293,7 @@ bun run dev</code
 		background: var(--ink);
 		color: var(--paper-bright);
 		font-family: var(--font-mono);
-		font-size: 0.7rem;
+		font-size: 0.8rem;
 		text-decoration: none;
 		transform: translateY(-180%);
 		transition: transform 120ms ease;
@@ -1339,7 +1340,7 @@ bun run dev</code
 	.brand__name {
 		display: inline-flex;
 		align-items: baseline;
-		font-size: 0.92rem;
+		font-size: 1rem;
 		font-weight: 680;
 		letter-spacing: -0.035em;
 		line-height: 1;
@@ -1371,7 +1372,7 @@ bun run dev</code
 		position: relative;
 		color: var(--ink-soft);
 		font-family: var(--font-mono);
-		font-size: 0.62rem;
+		font-size: 0.74rem;
 		font-weight: 500;
 		letter-spacing: 0.09em;
 		text-decoration: none;
@@ -1401,7 +1402,7 @@ bun run dev</code
 		justify-content: flex-end;
 		gap: 0.55rem;
 		font-family: var(--font-mono);
-		font-size: 0.55rem;
+		font-size: 0.68rem;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 	}
@@ -1447,7 +1448,7 @@ bun run dev</code
 		margin: 0 0 1.2rem;
 		color: var(--ink-soft);
 		font-family: var(--font-mono);
-		font-size: 0.62rem;
+		font-size: 0.74rem;
 		font-weight: 500;
 		letter-spacing: 0.1em;
 		line-height: 1.4;
@@ -1463,7 +1464,7 @@ bun run dev</code
 	h1 {
 		max-width: 58rem;
 		margin: 0;
-		font-size: clamp(3.5rem, 8.3vw, 7.75rem);
+		font-size: clamp(3.6rem, 8.6vw, 8.1rem);
 		font-weight: 690;
 		letter-spacing: -0.072em;
 		line-height: 0.87;
@@ -1490,7 +1491,7 @@ bun run dev</code
 		max-width: 38rem;
 		margin: clamp(1.8rem, 3.5vw, 2.8rem) 0 0;
 		color: var(--ink-soft);
-		font-size: clamp(1.02rem, 1.55vw, 1.2rem);
+		font-size: clamp(1.12rem, 1.7vw, 1.32rem);
 		line-height: 1.55;
 	}
 
@@ -1510,7 +1511,7 @@ bun run dev</code
 		padding: 0.2rem 0.35rem 0.2rem 1rem;
 		border: 1px solid var(--ink);
 		font-family: var(--font-mono);
-		font-size: 0.64rem;
+		font-size: 0.76rem;
 		font-weight: 580;
 		letter-spacing: 0.08em;
 		line-height: 1;
@@ -1537,7 +1538,7 @@ bun run dev</code
 		width: 2.2rem;
 		height: 2.2rem;
 		border-left: 1px solid color-mix(in srgb, currentColor 26%, transparent);
-		font-size: 0.9rem;
+		font-size: 0.98rem;
 	}
 
 	.text-link {
@@ -1548,7 +1549,7 @@ bun run dev</code
 		border-bottom: 1px solid currentColor;
 		color: var(--ink);
 		font-family: var(--font-mono);
-		font-size: 0.62rem;
+		font-size: 0.74rem;
 		font-weight: 500;
 		letter-spacing: 0.07em;
 		line-height: 1.2;
@@ -1577,7 +1578,7 @@ bun run dev</code
 
 	.hero__facts strong {
 		font-family: var(--font-mono);
-		font-size: 0.61rem;
+		font-size: 0.73rem;
 		font-weight: 580;
 		letter-spacing: 0.04em;
 		line-height: 1.4;
@@ -1587,7 +1588,7 @@ bun run dev</code
 	.hero__facts span {
 		color: var(--ink-soft);
 		font-family: var(--font-mono);
-		font-size: 0.55rem;
+		font-size: 0.68rem;
 		line-height: 1.4;
 	}
 
@@ -1640,7 +1641,7 @@ bun run dev</code
 		gap: 1rem;
 		color: var(--chalk-muted);
 		font-family: var(--font-mono);
-		font-size: 0.52rem;
+		font-size: 0.65rem;
 		letter-spacing: 0.1em;
 		line-height: 1.3;
 		text-transform: uppercase;
@@ -1688,7 +1689,7 @@ bun run dev</code
 	.spec__list dt {
 		color: var(--chalk-muted);
 		font-family: var(--font-mono);
-		font-size: 0.51rem;
+		font-size: 0.64rem;
 		letter-spacing: 0.07em;
 		line-height: 1.4;
 		text-transform: uppercase;
@@ -1698,7 +1699,7 @@ bun run dev</code
 		margin: 0;
 		color: var(--chalk);
 		font-family: var(--font-mono);
-		font-size: 0.61rem;
+		font-size: 0.73rem;
 		font-weight: 500;
 		letter-spacing: -0.01em;
 		line-height: 1.3;
@@ -1721,7 +1722,7 @@ bun run dev</code
 		border-top: 1px solid var(--chassis-line);
 		color: var(--chalk-muted);
 		font-family: var(--font-mono);
-		font-size: 0.55rem;
+		font-size: 0.68rem;
 		line-height: 1.55;
 	}
 
@@ -1734,7 +1735,7 @@ bun run dev</code
 		background: var(--agent);
 		color: #17100c;
 		font-family: var(--font-mono);
-		font-size: 0.5rem;
+		font-size: 0.63rem;
 		font-weight: 600;
 		letter-spacing: 0.08em;
 		line-height: 1.25;
@@ -1757,7 +1758,7 @@ bun run dev</code
 		gap: 0.8rem 2rem;
 		min-height: 2.55rem;
 		font-family: var(--font-mono);
-		font-size: 0.53rem;
+		font-size: 0.66rem;
 		font-weight: 500;
 		letter-spacing: 0.1em;
 		line-height: 1.3;
@@ -1798,7 +1799,7 @@ bun run dev</code
 		margin: 0.3rem 0 0;
 		color: var(--ink-soft);
 		font-family: var(--font-mono);
-		font-size: 0.57rem;
+		font-size: 0.7rem;
 		font-weight: 500;
 		letter-spacing: 0.1em;
 		line-height: 1.5;
@@ -1812,13 +1813,13 @@ bun run dev</code
 		height: 1.3rem;
 		border: 1px solid currentColor;
 		color: var(--signal-deep);
-		font-size: 0.48rem;
+		font-size: 0.61rem;
 		font-weight: 600;
 	}
 
 	.section-head h2 {
 		margin: 0;
-		font-size: clamp(2.05rem, 4.1vw, 3.5rem);
+		font-size: clamp(2.15rem, 4.25vw, 3.65rem);
 		font-weight: 660;
 		letter-spacing: -0.055em;
 		line-height: 0.98;
@@ -1828,7 +1829,7 @@ bun run dev</code
 		max-width: 30rem;
 		margin: 0.2rem 0 0;
 		color: var(--ink-soft);
-		font-size: 0.84rem;
+		font-size: 0.94rem;
 		line-height: 1.65;
 	}
 
@@ -1871,7 +1872,7 @@ bun run dev</code
 		background: #0d0d0b;
 		color: var(--chalk-muted);
 		font-family: var(--font-mono);
-		font-size: 0.52rem;
+		font-size: 0.65rem;
 		letter-spacing: 0.1em;
 		line-height: 1.4;
 		text-transform: uppercase;
@@ -1951,7 +1952,7 @@ bun run dev</code
 		justify-content: space-between;
 		gap: 1rem;
 		font-family: var(--font-mono);
-		font-size: 0.55rem;
+		font-size: 0.68rem;
 		letter-spacing: 0.1em;
 		line-height: 1.4;
 		text-transform: uppercase;
@@ -2021,7 +2022,7 @@ bun run dev</code
 		margin-bottom: 0.3rem;
 		color: var(--chalk-muted);
 		font-family: var(--font-mono);
-		font-size: 0.49rem;
+		font-size: 0.62rem;
 		letter-spacing: 0.1em;
 		line-height: 1.3;
 		text-transform: uppercase;
@@ -2032,7 +2033,7 @@ bun run dev</code
 		margin: 0;
 		color: var(--chalk);
 		font-family: var(--font-mono);
-		font-size: 0.65rem;
+		font-size: 0.77rem;
 		font-variant-numeric: tabular-nums;
 		letter-spacing: -0.02em;
 		line-height: 1.4;
@@ -2054,7 +2055,7 @@ bun run dev</code
 		background: rgba(255, 93, 43, 0.07);
 		color: var(--chalk);
 		font-family: var(--font-mono);
-		font-size: 0.56rem;
+		font-size: 0.69rem;
 		line-height: 1.5;
 	}
 
@@ -2087,7 +2088,7 @@ bun run dev</code
 	.controls__top {
 		color: var(--chalk-muted);
 		font-family: var(--font-mono);
-		font-size: 0.51rem;
+		font-size: 0.64rem;
 		letter-spacing: 0.1em;
 		line-height: 1.4;
 		text-transform: uppercase;
@@ -2114,7 +2115,7 @@ bun run dev</code
 		gap: 0.8rem;
 		color: var(--chalk-muted);
 		font-family: var(--font-mono);
-		font-size: 0.51rem;
+		font-size: 0.64rem;
 		letter-spacing: 0.1em;
 		line-height: 1.4;
 		text-transform: uppercase;
@@ -2122,7 +2123,7 @@ bun run dev</code
 
 	.target__mode {
 		color: var(--agent);
-		font-size: 0.48rem;
+		font-size: 0.61rem;
 		letter-spacing: 0.03em;
 		text-transform: none;
 	}
@@ -2144,7 +2145,7 @@ bun run dev</code
 		padding-left: 0.7rem;
 		color: var(--signal);
 		font-family: var(--font-mono);
-		font-size: 0.8rem;
+		font-size: 0.9rem;
 		line-height: 1;
 	}
 
@@ -2158,7 +2159,7 @@ bun run dev</code
 		background: transparent;
 		color: var(--chalk);
 		font-family: var(--font-mono);
-		font-size: 0.68rem;
+		font-size: 0.79rem;
 		line-height: 1;
 	}
 
@@ -2183,7 +2184,7 @@ bun run dev</code
 		padding: 0;
 		color: var(--chalk-muted);
 		font-family: var(--font-mono);
-		font-size: 0.51rem;
+		font-size: 0.64rem;
 		letter-spacing: 0.1em;
 		line-height: 1.4;
 		text-transform: uppercase;
@@ -2241,7 +2242,7 @@ bun run dev</code
 	.auth__option strong {
 		color: var(--chalk);
 		font-family: var(--font-mono);
-		font-size: 0.56rem;
+		font-size: 0.69rem;
 		font-weight: 520;
 		letter-spacing: 0.02em;
 		line-height: 1.35;
@@ -2250,7 +2251,7 @@ bun run dev</code
 	.auth__option small {
 		color: var(--chalk-muted);
 		font-family: var(--font-mono);
-		font-size: 0.48rem;
+		font-size: 0.61rem;
 		line-height: 1.3;
 	}
 
@@ -2332,14 +2333,14 @@ bun run dev</code
 
 	.mode-toggle strong {
 		color: var(--chalk);
-		font-size: 0.54rem;
+		font-size: 0.67rem;
 		font-weight: 520;
 		letter-spacing: 0.04em;
 	}
 
 	.mode-toggle small {
 		color: var(--chalk-muted);
-		font-size: 0.47rem;
+		font-size: 0.6rem;
 		font-weight: 400;
 	}
 
@@ -2425,7 +2426,7 @@ bun run dev</code
 
 	.connect__copy strong {
 		font-family: var(--font-mono);
-		font-size: 0.61rem;
+		font-size: 0.73rem;
 		font-weight: 650;
 		letter-spacing: 0.06em;
 		line-height: 1.3;
@@ -2434,7 +2435,7 @@ bun run dev</code
 
 	.connect__copy small {
 		font-family: var(--font-mono);
-		font-size: 0.49rem;
+		font-size: 0.62rem;
 		font-weight: 420;
 		letter-spacing: 0.01em;
 		line-height: 1.4;
@@ -2452,7 +2453,7 @@ bun run dev</code
 		margin: -0.15rem 0 0;
 		color: var(--chalk-muted);
 		font-family: var(--font-mono);
-		font-size: 0.54rem;
+		font-size: 0.67rem;
 		line-height: 1.55;
 	}
 
@@ -2475,7 +2476,7 @@ bun run dev</code
 		border: 1px solid #ff8b6b;
 		color: #ffb49d;
 		font-family: var(--font-mono);
-		font-size: 0.56rem;
+		font-size: 0.69rem;
 		line-height: 1;
 	}
 
@@ -2483,7 +2484,7 @@ bun run dev</code
 		margin: 0 0 0.15rem;
 		color: #ffb49d;
 		font-family: var(--font-mono);
-		font-size: 0.48rem;
+		font-size: 0.61rem;
 		font-weight: 550;
 		letter-spacing: 0.08em;
 		line-height: 1.4;
@@ -2494,7 +2495,7 @@ bun run dev</code
 		margin: 0;
 		color: var(--chalk);
 		font-family: var(--font-mono);
-		font-size: 0.55rem;
+		font-size: 0.68rem;
 		line-height: 1.55;
 	}
 
@@ -2540,7 +2541,7 @@ bun run dev</code
 		color: var(--chalk-muted);
 		cursor: pointer;
 		font-family: var(--font-mono);
-		font-size: 0.49rem;
+		font-size: 0.62rem;
 		letter-spacing: 0.05em;
 		line-height: 1.2;
 		text-transform: uppercase;
@@ -2587,7 +2588,7 @@ bun run dev</code
 		gap: 0.4rem;
 		color: var(--chalk-muted);
 		font-family: var(--font-mono);
-		font-size: 0.49rem;
+		font-size: 0.62rem;
 		letter-spacing: 0.06em;
 		line-height: 1.4;
 		text-transform: uppercase;
@@ -2613,7 +2614,7 @@ bun run dev</code
 	.device-drawer {
 		color: var(--chalk-muted);
 		font-family: var(--font-mono);
-		font-size: 0.49rem;
+		font-size: 0.62rem;
 		line-height: 1.45;
 	}
 
@@ -2643,7 +2644,7 @@ bun run dev</code
 		background: var(--chassis);
 		color: var(--chalk);
 		font-family: var(--font-mono);
-		font-size: 0.55rem;
+		font-size: 0.68rem;
 	}
 
 	.device-grid select:disabled {
@@ -2654,7 +2655,7 @@ bun run dev</code
 	.device-error {
 		margin: 0.5rem 0 0;
 		font-family: var(--font-mono);
-		font-size: 0.49rem;
+		font-size: 0.62rem;
 		line-height: 1.55;
 	}
 
@@ -2674,7 +2675,7 @@ bun run dev</code
 		justify-content: space-between;
 		gap: 1rem;
 		font-family: var(--font-mono);
-		font-size: 0.48rem;
+		font-size: 0.61rem;
 		letter-spacing: 0.06em;
 		line-height: 1.4;
 		text-transform: uppercase;
@@ -2712,7 +2713,7 @@ bun run dev</code
 
 	.latency__foot {
 		color: var(--chalk-muted);
-		font-size: 0.46rem;
+		font-size: 0.58rem;
 	}
 
 	.printer {
@@ -2728,7 +2729,7 @@ bun run dev</code
 		padding: 0.6rem 1rem;
 		color: var(--chalk-muted);
 		font-family: var(--font-mono);
-		font-size: 0.51rem;
+		font-size: 0.64rem;
 		letter-spacing: 0.09em;
 		line-height: 1.4;
 		text-transform: uppercase;
@@ -2759,7 +2760,7 @@ bun run dev</code
 
 	.printer__meta {
 		color: var(--chalk-muted);
-		font-size: 0.48rem;
+		font-size: 0.61rem;
 	}
 
 	.printer__paper {
@@ -2811,7 +2812,7 @@ bun run dev</code
 		padding: 0.55rem 0;
 		color: var(--ink-soft);
 		font-family: var(--font-mono);
-		font-size: 0.65rem;
+		font-size: 0.77rem;
 		line-height: 1.6;
 	}
 
@@ -2828,14 +2829,14 @@ bun run dev</code
 		flex: 0 0 auto;
 		border: 1px solid rgb(var(--ink-rgb) / 0.36);
 		color: var(--signal-deep);
-		font-size: 0.7rem;
+		font-size: 0.8rem;
 		line-height: 1;
 	}
 
 	.printer__small {
 		margin-top: 0.35rem !important;
 		color: rgb(var(--ink-rgb) / 0.56);
-		font-size: 0.56rem;
+		font-size: 0.69rem;
 	}
 
 	.printer__entry {
@@ -2857,7 +2858,7 @@ bun run dev</code
 		padding-top: 0.08rem;
 		color: rgb(var(--ink-rgb) / 0.55);
 		font-family: var(--font-mono);
-		font-size: 0.51rem;
+		font-size: 0.64rem;
 		letter-spacing: 0.04em;
 		line-height: 1.35;
 		text-transform: uppercase;
@@ -2875,7 +2876,7 @@ bun run dev</code
 
 	.printer__entry p {
 		margin: 0;
-		font-size: 0.79rem;
+		font-size: 0.89rem;
 		line-height: 1.58;
 		overflow-wrap: anywhere;
 	}
@@ -2899,7 +2900,7 @@ bun run dev</code
 		border-top: 1px solid var(--chassis-line);
 		color: var(--chalk-muted);
 		font-family: var(--font-mono);
-		font-size: 0.48rem;
+		font-size: 0.61rem;
 		letter-spacing: 0.08em;
 		line-height: 1.4;
 		text-transform: uppercase;
@@ -2917,7 +2918,7 @@ bun run dev</code
 		color: var(--chalk);
 		cursor: pointer;
 		font-family: var(--font-mono);
-		font-size: 0.47rem;
+		font-size: 0.6rem;
 		letter-spacing: 0.06em;
 		line-height: 1;
 		text-transform: uppercase;
@@ -2955,7 +2956,7 @@ bun run dev</code
 		gap: 1rem;
 		color: var(--chalk-muted);
 		font-family: var(--font-mono);
-		font-size: 0.47rem;
+		font-size: 0.6rem;
 		letter-spacing: 0.08em;
 		line-height: 1.4;
 		text-transform: uppercase;
@@ -2974,7 +2975,7 @@ bun run dev</code
 	.composer__input > span {
 		color: var(--signal);
 		font-family: var(--font-mono);
-		font-size: 0.8rem;
+		font-size: 0.9rem;
 		line-height: 1;
 	}
 
@@ -2987,7 +2988,7 @@ bun run dev</code
 		background: transparent;
 		color: var(--chalk);
 		font-family: var(--font-mono);
-		font-size: 0.63rem;
+		font-size: 0.75rem;
 	}
 
 	.composer__input input::placeholder {
@@ -3006,7 +3007,7 @@ bun run dev</code
 		color: #17100c;
 		cursor: pointer;
 		font-family: var(--font-mono);
-		font-size: 0.53rem;
+		font-size: 0.66rem;
 		font-weight: 600;
 		letter-spacing: 0.08em;
 		line-height: 1;
@@ -3037,7 +3038,7 @@ bun run dev</code
 		border-top: 1px solid var(--chassis-line);
 		color: var(--chalk-muted);
 		font-family: var(--font-mono);
-		font-size: 0.47rem;
+		font-size: 0.6rem;
 		letter-spacing: 0.08em;
 		line-height: 1.4;
 		text-transform: uppercase;
@@ -3119,7 +3120,7 @@ bun run dev</code
 	.steps__num {
 		color: var(--signal-deep);
 		font-family: var(--font-mono);
-		font-size: 0.56rem;
+		font-size: 0.69rem;
 		font-weight: 550;
 		letter-spacing: 0.06em;
 		line-height: 1.5;
@@ -3137,7 +3138,7 @@ bun run dev</code
 		max-width: 32rem;
 		margin: 0;
 		color: var(--ink-soft);
-		font-size: 0.78rem;
+		font-size: 0.88rem;
 		line-height: 1.62;
 	}
 
@@ -3164,7 +3165,7 @@ bun run dev</code
 		border-bottom: 1px solid var(--chassis-line);
 		color: var(--chalk-muted);
 		font-family: var(--font-mono);
-		font-size: 0.5rem;
+		font-size: 0.63rem;
 		letter-spacing: 0.09em;
 		line-height: 1.4;
 		text-transform: uppercase;
@@ -3192,7 +3193,7 @@ bun run dev</code
 		margin-bottom: 0.6rem;
 		color: var(--chalk-muted);
 		font-family: var(--font-mono);
-		font-size: 0.49rem;
+		font-size: 0.62rem;
 		letter-spacing: 0.11em;
 		line-height: 1.4;
 		text-transform: uppercase;
@@ -3233,7 +3234,7 @@ bun run dev</code
 		display: block;
 		color: var(--chalk);
 		font-family: var(--font-mono);
-		font-size: 0.57rem;
+		font-size: 0.7rem;
 		font-weight: 520;
 		letter-spacing: -0.02em;
 		line-height: 1.4;
@@ -3244,7 +3245,7 @@ bun run dev</code
 		margin-top: 0.2rem;
 		color: var(--chalk-muted);
 		font-family: var(--font-mono);
-		font-size: 0.46rem;
+		font-size: 0.58rem;
 		line-height: 1.4;
 	}
 
@@ -3255,7 +3256,7 @@ bun run dev</code
 		height: 1.65rem;
 		color: var(--chalk-muted);
 		font-family: var(--font-mono);
-		font-size: 0.44rem;
+		font-size: 0.56rem;
 		line-height: 1.3;
 	}
 
@@ -3288,7 +3289,7 @@ bun run dev</code
 		border: 1px solid rgba(241, 234, 219, 0.14);
 		color: var(--chalk);
 		font-family: var(--font-mono);
-		font-size: 0.5rem;
+		font-size: 0.63rem;
 		line-height: 1.35;
 	}
 
@@ -3296,7 +3297,7 @@ bun run dev</code
 		display: block;
 		margin-top: 0.15rem;
 		color: var(--chalk-muted);
-		font-size: 0.44rem;
+		font-size: 0.56rem;
 	}
 
 	.diagram__bridge {
@@ -3308,7 +3309,7 @@ bun run dev</code
 		padding-top: 1.5rem;
 		color: var(--signal);
 		font-family: var(--font-mono);
-		font-size: 0.46rem;
+		font-size: 0.58rem;
 		letter-spacing: 0.05em;
 		line-height: 1.3;
 		text-transform: uppercase;
@@ -3334,7 +3335,7 @@ bun run dev</code
 		border: 1px dashed rgba(205, 246, 108, 0.32);
 		color: var(--chalk-muted);
 		font-family: var(--font-mono);
-		font-size: 0.46rem;
+		font-size: 0.58rem;
 		letter-spacing: 0.02em;
 		line-height: 1.4;
 	}
@@ -3343,7 +3344,7 @@ bun run dev</code
 		padding: 0.18rem 0.28rem;
 		background: rgba(205, 246, 108, 0.12);
 		color: var(--agent);
-		font-size: 0.42rem;
+		font-size: 0.55rem;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 	}
@@ -3371,7 +3372,7 @@ bun run dev</code
 		border-top: 1px solid var(--chassis-line);
 		color: var(--chalk-muted);
 		font-family: var(--font-mono);
-		font-size: 0.45rem;
+		font-size: 0.57rem;
 		letter-spacing: 0.05em;
 		line-height: 1.4;
 		text-transform: uppercase;
@@ -3443,7 +3444,7 @@ bun run dev</code
 		align-items: baseline;
 		margin-bottom: 0.55rem;
 		font-family: var(--font-mono);
-		font-size: 0.57rem;
+		font-size: 0.7rem;
 		letter-spacing: 0.08em;
 		line-height: 1.4;
 		text-transform: uppercase;
@@ -3451,7 +3452,7 @@ bun run dev</code
 
 	.install__step-head span:first-child {
 		color: var(--signal);
-		font-size: 0.48rem;
+		font-size: 0.61rem;
 	}
 
 	.install__step-head span:last-child {
@@ -3462,7 +3463,7 @@ bun run dev</code
 		margin: 0.55rem 0 0;
 		color: var(--chalk-muted);
 		font-family: var(--font-mono);
-		font-size: 0.55rem;
+		font-size: 0.68rem;
 		line-height: 1.6;
 	}
 
@@ -3488,7 +3489,7 @@ bun run dev</code
 		overflow: hidden;
 		color: var(--agent);
 		font-family: var(--font-mono);
-		font-size: 0.68rem;
+		font-size: 0.79rem;
 		line-height: 2.2;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -3508,7 +3509,7 @@ bun run dev</code
 		color: var(--chalk);
 		cursor: pointer;
 		font-family: var(--font-mono);
-		font-size: 0.47rem;
+		font-size: 0.6rem;
 		letter-spacing: 0.06em;
 		line-height: 1.2;
 		text-transform: uppercase;
@@ -3527,7 +3528,7 @@ bun run dev</code
 		background: #0c0c09;
 		color: var(--chalk);
 		font-family: var(--font-mono);
-		font-size: 0.58rem;
+		font-size: 0.71rem;
 		line-height: 1.75;
 	}
 
@@ -3551,7 +3552,7 @@ bun run dev</code
 		border-bottom: 1px solid rgba(241, 234, 219, 0.17);
 		color: var(--agent);
 		font-family: var(--font-mono);
-		font-size: 0.5rem;
+		font-size: 0.63rem;
 		letter-spacing: 0.1em;
 		line-height: 1.4;
 		text-transform: uppercase;
@@ -3567,7 +3568,7 @@ bun run dev</code
 		padding: clamp(1.1rem, 3vw, 2rem);
 		color: #e6dfd1;
 		font-family: var(--font-mono);
-		font-size: clamp(0.62rem, 1.2vw, 0.76rem);
+		font-size: clamp(0.68rem, 1.3vw, 0.84rem);
 		line-height: 1.95;
 		tab-size: 2;
 	}
@@ -3599,7 +3600,7 @@ bun run dev</code
 		margin: 0;
 		color: rgba(241, 234, 219, 0.54);
 		font-family: var(--font-mono);
-		font-size: 0.55rem;
+		font-size: 0.68rem;
 		line-height: 1.6;
 	}
 
@@ -3609,7 +3610,7 @@ bun run dev</code
 
 	.text-link--light {
 		color: var(--chalk);
-		font-size: 0.53rem;
+		font-size: 0.66rem;
 	}
 
 	.quickstart__sticker {
@@ -3659,7 +3660,7 @@ bun run dev</code
 		border: 1px solid var(--signal);
 		color: var(--signal);
 		font-family: var(--font-mono);
-		font-size: 0.5rem;
+		font-size: 0.63rem;
 		line-height: 1;
 	}
 
@@ -3668,7 +3669,7 @@ bun run dev</code
 		margin: 0;
 		color: var(--chalk-muted);
 		font-family: var(--font-mono);
-		font-size: 0.53rem;
+		font-size: 0.66rem;
 		line-height: 1.6;
 	}
 
@@ -3703,7 +3704,7 @@ bun run dev</code
 		border-bottom: 1px solid var(--rule);
 		color: var(--ink-soft);
 		font-family: var(--font-mono);
-		font-size: 0.5rem;
+		font-size: 0.63rem;
 		letter-spacing: 0.08em;
 		line-height: 1.4;
 		text-transform: uppercase;
@@ -3738,14 +3739,14 @@ bun run dev</code
 
 	.api__list dt code {
 		color: var(--signal-deep);
-		font-size: 0.62rem;
+		font-size: 0.74rem;
 		font-weight: 560;
 	}
 
 	.api__list dd {
 		margin: 0;
 		color: var(--ink-soft);
-		font-size: 0.7rem;
+		font-size: 0.8rem;
 		line-height: 1.55;
 	}
 
@@ -3753,7 +3754,7 @@ bun run dev</code
 		padding: 0.08rem 0.2rem;
 		background: rgb(var(--ink-rgb) / 0.07);
 		font-family: var(--font-mono);
-		font-size: 0.56rem;
+		font-size: 0.69rem;
 	}
 
 	.method-list {
@@ -3774,14 +3775,14 @@ bun run dev</code
 		padding: 0.16rem 0.28rem;
 		background: var(--chassis);
 		color: var(--agent);
-		font-size: 0.57rem;
+		font-size: 0.7rem;
 		line-height: 1.4;
 	}
 
 	.method p {
 		margin: 0.35rem 0 0;
 		color: var(--ink-soft);
-		font-size: 0.7rem;
+		font-size: 0.8rem;
 		line-height: 1.55;
 	}
 
@@ -3800,7 +3801,7 @@ bun run dev</code
 		margin-bottom: 0.45rem;
 		color: var(--signal-deep);
 		font-family: var(--font-mono);
-		font-size: 0.52rem;
+		font-size: 0.65rem;
 		letter-spacing: 0.09em;
 		text-transform: uppercase;
 	}
@@ -3817,7 +3818,7 @@ bun run dev</code
 		max-width: 39rem;
 		margin: 0;
 		color: var(--ink-soft);
-		font-size: 0.73rem;
+		font-size: 0.84rem;
 		line-height: 1.6;
 	}
 
@@ -3835,7 +3836,7 @@ bun run dev</code
 	}
 
 	.api__component-code code {
-		font-size: 0.56rem;
+		font-size: 0.69rem;
 		line-height: 1.55;
 		white-space: nowrap;
 	}
@@ -3845,7 +3846,7 @@ bun run dev</code
 		margin: 1.4rem 0 0;
 		color: var(--ink-soft);
 		font-family: var(--font-mono);
-		font-size: 0.57rem;
+		font-size: 0.7rem;
 		line-height: 1.65;
 	}
 
@@ -3882,7 +3883,7 @@ bun run dev</code
 
 	.community h2 {
 		margin: 1.2rem 0 0;
-		font-size: clamp(2.1rem, 5vw, 4.1rem);
+		font-size: clamp(2.2rem, 5.1vw, 4.25rem);
 		font-weight: 680;
 		letter-spacing: -0.06em;
 		line-height: 0.92;
@@ -3895,7 +3896,7 @@ bun run dev</code
 	.community__lede {
 		margin: 0;
 		color: var(--ink-soft);
-		font-size: 0.92rem;
+		font-size: 1rem;
 		line-height: 1.65;
 	}
 
@@ -3906,7 +3907,7 @@ bun run dev</code
 		background: var(--signal);
 		color: #17100c;
 		font-family: var(--font-mono);
-		font-size: 0.68rem;
+		font-size: 0.79rem;
 		font-weight: 530;
 		line-height: 1.55;
 	}
@@ -3917,7 +3918,7 @@ bun run dev</code
 		gap: 0.6rem 1.2rem;
 		color: var(--ink-soft);
 		font-family: var(--font-mono);
-		font-size: 0.52rem;
+		font-size: 0.65rem;
 		letter-spacing: 0.08em;
 		line-height: 1.4;
 		text-transform: uppercase;
@@ -3983,7 +3984,7 @@ bun run dev</code
 	.footer__nav a {
 		color: var(--chalk-muted);
 		font-family: var(--font-mono);
-		font-size: 0.52rem;
+		font-size: 0.65rem;
 		letter-spacing: 0.07em;
 		line-height: 1.5;
 		text-decoration: none;
@@ -4012,7 +4013,7 @@ bun run dev</code
 		border: 1px solid var(--signal);
 		color: var(--signal);
 		font-family: var(--font-mono);
-		font-size: 0.56rem;
+		font-size: 0.69rem;
 		line-height: 1;
 	}
 
@@ -4021,7 +4022,7 @@ bun run dev</code
 		margin: 0;
 		color: var(--chalk-muted);
 		font-family: var(--font-mono);
-		font-size: 0.58rem;
+		font-size: 0.71rem;
 		line-height: 1.6;
 	}
 
@@ -4034,7 +4035,7 @@ bun run dev</code
 		padding-block: 1rem 1.2rem;
 		color: rgba(241, 234, 219, 0.4);
 		font-family: var(--font-mono);
-		font-size: 0.47rem;
+		font-size: 0.6rem;
 		letter-spacing: 0.07em;
 		line-height: 1.5;
 		text-transform: uppercase;

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-23
+
+### Added
+
+- Machine readable documentation at `/llms.txt`, `/llms-full.txt`, and `/docs/llms.txt`, with a compact index and a complete reference generated from one Markdown source.
+- `rel="describedby"` metadata on the showcase and docs, plus sidebar, footer, and overview links that expose the machine readable files.
+
+### Changed
+
+- Increased desktop typography across the showcase for readability, with larger body copy and a higher floor for instrument labels, without changing the page layout.
+- Revised showcase copy in the hero, console, install, and community sections to remove repeated lines and describe behavior more precisely.
+- Bumped the package version from `0.5.0` to `0.5.1`.
+
 ## [0.5.0] - 2026-10-23
 
 ### Added

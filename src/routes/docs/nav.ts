@@ -38,7 +38,7 @@ export interface DocsNavGroup {
 }
 
 /** Current package version displayed in the docs chrome. */
-export const docsVersion = '0.5.0';
+export const docsVersion = '0.5.1';
 
 /** Sidebar groups in reading order. */
 export const docsNav: DocsNavGroup[] = [
