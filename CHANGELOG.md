@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-10-24
+
+### Changed
+
+- Bumped the package version from `0.6.0` to `0.6.1`.
+
+### Fixed
+
+- Added the missing Safety section to the Agent kit documentation. This fixes the broken `/docs/agents#safety` anchor that failed the static Pages prerender, and the offline test suite now checks that every table of contents entry has a matching heading.
+
 ## [0.6.0] - 2026-10-24
 
 ### Added

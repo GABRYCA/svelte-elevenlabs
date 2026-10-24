@@ -189,4 +189,51 @@ license: MIT
 		agent guide is shorter than the full reference and focuses on decisions an agent has to make while
 		editing an application.
 	</p>
+
+	<h2 id="safety">Safety</h2>
+	<p>
+		The installer is deliberately conservative. It reads the guide from the installed package,
+		writes only the targets you name or detection finds, and never calls the network, runs a
+		generated script, or asks for credentials. Run a dry run before a real install when the project
+		already has agent rules you want to keep.
+	</p>
+	<Callout tone="security" title="Keep secrets out of prompts">
+		<p>
+			Never paste <code>ELEVENLABS_API_KEY</code> into a prompt, an agent rule file, or a committed
+			<code>.env</code>. Point the agent at the server route and let it read the key from the
+			runtime environment. The same rule applies to a signed URL, which is a short lived credential.
+		</p>
+	</Callout>
+	<ul>
+		<li>
+			Run <code>agents install --dry-run</code> first and review every destination path before the installer
+			writes a file.
+		</li>
+		<li>
+			Keep <code>.env</code> and local overrides out of version control. The bundled guide contains no
+			key, no account data, and no agent configuration.
+		</li>
+		<li>
+			Keep <code>ELEVENLABS_API_KEY</code> in server code such as
+			<code>src/routes/api/signed-url/+server.ts</code>, never in a <code>PUBLIC_*</code> variable and
+			never in a static artifact.
+		</li>
+		<li>
+			Review generated code as you would review a pull request. The kit describes the public API,
+			but it cannot verify that the agent used it correctly.
+		</li>
+		<li>
+			Treat a change to the signed URL route, audio permissions, or dependencies as security
+			sensitive and inspect it by hand.
+		</li>
+		<li>
+			Run <code>bun run check</code>, <code>bun run test</code>, and <code>bun run lint</code> before
+			you merge an agent change in this repository.
+		</li>
+	</ul>
+	<p>
+		The guide is documentation, not a sandbox. An agent can still make an unsafe choice, so keep the
+		review checklist in the loop and keep production credentials out of the workspace you hand to
+		it.
+	</p>
 </DocsPage>

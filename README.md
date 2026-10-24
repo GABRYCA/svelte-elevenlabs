@@ -712,7 +712,7 @@ The published tarball contains `dist`, `agent-kit`, `bin`, `README.md`, and `LIC
 
 ## Publishing
 
-The package version is `0.6.0`. `prepack` runs `svelte-kit sync`, `svelte-package`, and `publint`, so `dist` is rebuilt from source before every publish.
+The package version is `0.6.1`. `prepack` runs `svelte-kit sync`, `svelte-package`, and `publint`, so `dist` is rebuilt from source before every publish.
 
 ```sh
 bun run prepack

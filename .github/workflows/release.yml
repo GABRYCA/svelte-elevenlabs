@@ -54,7 +54,7 @@ jobs:
       - name: Check out the repository
         uses: actions/checkout@v7
 
-      - name: Set up Bun
+      - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.3
@@ -79,7 +79,7 @@ jobs:
       - name: Check out the repository
         uses: actions/checkout@v7
 
-      - name: Set up Bun
+      - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.3
@@ -118,7 +118,7 @@ jobs:
       - name: Check out the repository
         uses: actions/checkout@v7
 
-      - name: Set up Bun
+      - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.3
