@@ -29,7 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Agent playback stays active across short text-to-speech gaps instead of reporting idle between sentences, which also prevents the widget from showing an open line while a response is still streaming.
 - Fast text-to-speech streams that deliver several seconds of audio in a short burst are now scheduled in order. Previously the playback cursor reset to the current time, which overlapped chunks and made a full response sound truncated.
 
-
 ## [0.5.1] - 2026-10-23
 
 ### Added
