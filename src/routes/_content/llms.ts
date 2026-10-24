@@ -73,6 +73,13 @@ This file is a compact map for language models and coding agents. The complete r
 - [Components](${siteUrl}/docs/components): the visualizer, widget, provider, and theme variables.
 - [Signed URLs](${siteUrl}/docs/signed-urls): the server exchange contract and deployment checklist.
 
+## Tooling
+
+- [Agent kit](${siteUrl}/docs/agents): install one reviewed guide for Claude Code, Cursor, OpenCode, Copilot, Windsurf, Cline, Gemini CLI, and other coding agents.
+- [Agent guide source](https://github.com/GABRYCA/svelte-elevenlabs/blob/main/agent-kit/instructions.md): canonical Markdown used by the installer.
+
+Install the guide in a project with \`bunx svelte-elevenlabs agents install\` or \`npx svelte-elevenlabs agents install\`. The command detects configured tools, keeps shared files intact, and writes only local Markdown.
+
 ## Reference
 
 - [API reference](${siteUrl}/docs/reference): options, reactive controller fields, methods, and public types.
@@ -82,6 +89,7 @@ This file is a compact map for language models and coding agents. The complete r
 ## Project
 
 - [Human documentation](${siteUrl}/docs): the rendered documentation site.
+- [Live demo](${siteUrl}/demo): the ConversationWidget running against a live agent, with a focus view.
 - [Source](${SITE_ORIGIN}/GABRYCA/svelte-elevenlabs): repository, issues, and release notes.
 - [npm package](https://www.npmjs.com/package/svelte-elevenlabs): published package.
 `;

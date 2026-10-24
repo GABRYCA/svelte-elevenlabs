@@ -10,6 +10,9 @@ describe('LLM documentation', () => {
 		expect(index).toContain(`Version: ${pkg.version}`);
 		expect(index).toContain(`${siteUrl}/llms-full.txt`);
 		expect(index).toContain(`${siteUrl}/docs/reference`);
+		expect(index).toContain(`${siteUrl}/docs/agents`);
+		expect(index).toContain(`${siteUrl}/demo`);
+		expect(index).toContain('bunx svelte-elevenlabs agents install');
 		expect(index).not.toContain('{{');
 	});
 
@@ -18,6 +21,8 @@ describe('LLM documentation', () => {
 
 		expect(full).toContain(`Canonical documentation: ${siteUrl}/docs`);
 		expect(full).toContain(`Package version: ${pkg.version}`);
+		expect(full).toContain(`${siteUrl}/docs/agents`);
+		expect(full).toContain(`${siteUrl}/demo`);
 		expect(full).not.toContain('{{SITE}}');
 		expect(full).not.toContain('{{VERSION}}');
 	});

@@ -130,6 +130,11 @@
 		<a href={resolve('/docs/llms.txt')}><code>/docs/llms.txt</code></a> for agents that look beside the
 		docs they are reading.
 	</p>
+	<p>
+		For Claude Code, Cursor, OpenCode, Copilot, Windsurf, Cline, Gemini CLI, and other coding
+		agents, the <a href={resolve('/docs/agents')}>agent kit</a> installs one reviewed guide into the
+		file each tool already reads. Run <code>bunx svelte-elevenlabs agents install</code> in your project.
+	</p>
 
 	<h2 id="start-here">Start here</h2>
 	<div class="docs-index">
@@ -166,6 +171,16 @@
 			<span class="docs-index__meta">Security</span>
 			<span class="docs-index__label">Signed URLs</span>
 			<span class="docs-index__copy">The server route contract and the deployment checklist.</span>
+		</a>
+		<a href={resolve('/docs/agents')}>
+			<span class="docs-index__meta">Tooling</span>
+			<span class="docs-index__label">Agent kit</span>
+			<span class="docs-index__copy">One command that teaches coding agents the correct API.</span>
+		</a>
+		<a href={resolve('/demo')}>
+			<span class="docs-index__meta">Demo</span>
+			<span class="docs-index__label">Live widget</span>
+			<span class="docs-index__copy">A real session with a focus view for recording.</span>
 		</a>
 	</div>
 </DocsPage>

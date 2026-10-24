@@ -5,6 +5,7 @@
  * render time so the GitHub Pages base path is applied correctly on every
  * request.
  */
+import pkg from '../../../package.json';
 
 /** Every documentation route that appears in the sidebar. */
 export type DocsHref =
@@ -16,6 +17,7 @@ export type DocsHref =
 	| '/docs/client-tools'
 	| '/docs/components'
 	| '/docs/signed-urls'
+	| '/docs/agents'
 	| '/docs/reference'
 	| '/docs/troubleshooting';
 
@@ -38,7 +40,7 @@ export interface DocsNavGroup {
 }
 
 /** Current package version displayed in the docs chrome. */
-export const docsVersion = '0.5.1';
+export const docsVersion = pkg.version;
 
 /** Sidebar groups in reading order. */
 export const docsNav: DocsNavGroup[] = [
@@ -89,6 +91,16 @@ export const docsNav: DocsNavGroup[] = [
 				label: 'Signed URLs',
 				href: '/docs/signed-urls',
 				description: 'Keep the ElevenLabs API key on the server.'
+			}
+		]
+	},
+	{
+		label: 'Tooling',
+		items: [
+			{
+				label: 'Agent kit',
+				href: '/docs/agents',
+				description: 'Install rules and skills for coding agents.'
 			}
 		]
 	},

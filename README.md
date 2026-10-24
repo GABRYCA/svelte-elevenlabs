@@ -1,5 +1,9 @@
 # svelte-elevenlabs
 
+[![ConversationWidget running a live ElevenLabs session](https://raw.githubusercontent.com/GABRYCA/svelte-elevenlabs/main/docs/media/conversation-widget-demo.gif)](https://github.com/GABRYCA/svelte-elevenlabs/blob/main/docs/media/conversation-widget-demo.mp4)
+
+A live session recorded from the showcase at `/demo`. Click the preview for the MP4 with sound.
+
 > **This is an independent community project. Not affiliated with or endorsed by ElevenLabs Inc.**
 
 A Svelte 5 library and SvelteKit 3 showcase for ElevenLabs Conversational AI. One controller opens a low-latency voice or text session, exposes reactive call state, streams PCM audio over a WebSocket, and releases its sockets, media tracks, audio nodes, and timers on teardown.
@@ -31,7 +35,7 @@ The showcase server and package tooling run on **Node 22.17 or newer** and **Bun
 - **Ready-made UI.** `<AudioVisualizer>` and `<ConversationWidget>` consume the same controller. The widget supports voice, text, feedback, playback volume, device selection, transcripts, queue state, and theming through CSS custom properties.
 - **Safe signed URLs.** The included SvelteKit route validates `agent_` and `seng_` ids, sets `Cache-Control: no-store`, and keeps `ELEVENLABS_API_KEY` on the server. The static Pages build removes the route and disables signed mode in the UI.
 
-The repository also contains a runnable SvelteKit 3 showcase in `src/routes`. It demonstrates the controller, signed and public connection modes, voice and text sessions, device controls, feedback, and the diagnostic console.
+The repository also contains a runnable SvelteKit 3 showcase in `src/routes`. It demonstrates the controller, signed and public connection modes, voice and text sessions, device controls, feedback, and the diagnostic console. The `/demo` page renders `<ConversationWidget>` on its own, with a focus view for recording, and the `svelte-elevenlabs agents` command installs a reviewed guide for coding agents.
 
 ## Documentation
 
@@ -39,6 +43,7 @@ The showcase ships a documentation section at [gabryca.github.io/svelte-elevenla
 
 - **Start here:** overview, install, and quickstart.
 - **Guides:** sessions, audio, client tools, components, and signed URLs.
+- **Tooling:** the agent kit for coding agents.
 - **Reference:** API reference and troubleshooting.
 
 Run `bun run dev` and open `http://localhost:5173/docs` to read it locally. The static Pages build includes the same pages and respects `PAGES_BASE_PATH`, while the signed URL guide explains why that route only exists on the Node or Bun server.
@@ -54,6 +59,36 @@ The same material is published as plain Markdown for coding agents and other lan
 - `/docs/llms.txt` mirrors the compact index under the docs path.
 
 The files are prerendered, so they exist in the Node, Bun, and static Pages builds. Absolute links follow `PAGES_BASE_PATH`, and the reference version is read from `package.json`.
+
+The agent kit is a shorter, decision-focused companion for project work. It installs into the consumer project instead of replacing these endpoints.
+
+## Agent kit
+
+The package ships a canonical guide for coding agents and a small installer that writes it into the file each tool already reads.
+
+```sh
+# Bun
+bunx svelte-elevenlabs agents install
+
+# npm
+npx svelte-elevenlabs agents install
+```
+
+With no target names, the command detects Claude Code, Cursor, OpenCode, GitHub Copilot, Windsurf, Cline, Gemini CLI, and `AGENTS.md` aware tools in the current project. When it cannot detect one, it adds a managed block to `AGENTS.md`. Choose targets explicitly when you want more:
+
+```sh
+bunx svelte-elevenlabs agents install claude cursor opencode
+bunx svelte-elevenlabs agents install --all
+bunx svelte-elevenlabs agents install claude --dry-run
+```
+
+Targets are `claude`, `cursor`, `opencode`, `copilot`, `windsurf`, `cline`, `gemini`, and `agents`. Shared files such as `AGENTS.md`, `GEMINI.md`, and `.github/copilot-instructions.md` keep their existing content. The installer updates only the block between `svelte-elevenlabs:agent-kit:start` and `svelte-elevenlabs:agent-kit:end`. Dedicated skill and rule files are skipped when they already exist without a managed block unless you pass `--force`.
+
+Use `agents list` to print every destination path and `agents print` to send the guide to standard output. The canonical source is [`agent-kit/instructions.md`](https://github.com/GABRYCA/svelte-elevenlabs/blob/main/agent-kit/instructions.md), and the full guide is at [gabryca.github.io/svelte-elevenlabs/docs/agents](https://gabryca.github.io/svelte-elevenlabs/docs/agents).
+
+## Live demo
+
+The showcase includes a focus view at [gabryca.github.io/svelte-elevenlabs/demo](https://gabryca.github.io/svelte-elevenlabs/demo). It renders `<ConversationWidget>` against a live agent with the same controller as the main console. The Node and Bun builds use signed URLs; the static Pages build uses a public agent id.
 
 ## Requirements
 
@@ -640,9 +675,18 @@ The project uses SvelteKit 3, whose Vite configuration lives in `vite.config.ts`
 
 The release workflow runs on every push to `main`, tags new package versions, publishes GitHub releases, deploys Pages, and uploads build artifacts. Pull request CI runs the same checks without touching ElevenLabs quota. Both install with a frozen lockfile.
 
-### Package layout
+### Repository layout
 
 ```text
+agent-kit/
+  instructions.md                 # canonical guide for coding agents
+  README.md                       # install notes and target table
+bin/
+  svelte-elevenlabs.js            # dependency free agents CLI
+docs/media/
+  conversation-widget-demo.gif    # README preview
+  conversation-widget-demo.mp4    # clip with sound
+  conversation-widget-demo-poster.jpg
 src/
   env.ts                          # explicit public demo env for SvelteKit 3
   lib/
@@ -659,12 +703,16 @@ src/
   routes/
     +layout.ts                    # prerender only in Pages mode
     +page.svelte                  # live signal-console showcase
+    demo/+page.svelte             # ConversationWidget demo and focus view
+    docs/agents/+page.svelte      # agent kit documentation
     api/signed-url/+server.ts     # server-only signed URL exchange
 ```
 
+The published tarball contains `dist`, `agent-kit`, `bin`, `README.md`, and `LICENSE`. The showcase in `src` and the media in `docs` stay in the repository.
+
 ## Publishing
 
-The package version is `0.5.1`. `prepack` runs `svelte-kit sync`, `svelte-package`, and `publint`, so `dist` is rebuilt from source before every publish.
+The package version is `0.6.0`. `prepack` runs `svelte-kit sync`, `svelte-package`, and `publint`, so `dist` is rebuilt from source before every publish.
 
 ```sh
 bun run prepack
@@ -672,7 +720,7 @@ npm pack --dry-run
 npm publish --access public
 ```
 
-`publishConfig.access` is already `public`. The published files are limited to `dist`, and the package exposes the root entry plus the `audio`, `types`, and `package.json` subpaths.
+`publishConfig.access` is already `public`. The published files include `dist`, `agent-kit`, and `bin`. The package exposes the root entry plus the `audio`, `types`, and `package.json` subpaths, and the `svelte-elevenlabs` bin entry provides the agent kit command.
 
 When you push a version bump to `main`, the release workflow creates the `v<version>` tag, publishes the GitHub release, and attaches the same tarball that `bun pm pack` produces. You can still publish to npm manually from that tarball.
 

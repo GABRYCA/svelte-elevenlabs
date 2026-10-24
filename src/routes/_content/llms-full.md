@@ -994,6 +994,22 @@ The showcase reads public values through SvelteKit 3's explicit environment cont
 
 ## Guidance for coding agents
 
+### Install the agent kit
+
+The package ships a canonical guide at `agent-kit/instructions.md`. The `svelte-elevenlabs agents` command writes that guide into the file each tool already reads:
+
+```sh
+bunx svelte-elevenlabs agents install
+bunx svelte-elevenlabs agents install claude cursor opencode
+bunx svelte-elevenlabs agents install --all
+```
+
+Targets are `claude`, `cursor`, `opencode`, `copilot`, `windsurf`, `cline`, `gemini`, and `agents`. Shared files such as `AGENTS.md` and `GEMINI.md` keep their existing content. The installer updates only the block between `svelte-elevenlabs:agent-kit:start` and `svelte-elevenlabs:agent-kit:end`. Use `agents list` to print the destination paths and `agents print` to send the guide to standard output.
+
+The kit is documented at {{SITE}}/docs/agents. It complements this reference: the full file explains the complete surface, while the kit focuses on the decisions an agent makes while editing an application.
+
+### Rules
+
 - Use Svelte 5 runes and the package's reactive values directly in markup. Do not wrap controller state in stores.
 - Call `useConversation` synchronously during component initialisation. Use `createConversation` when you own the lifecycle.
 - Start voice sessions from a user gesture. Do not start during SSR or module evaluation.
@@ -1011,7 +1027,9 @@ The showcase reads public values through SvelteKit 3's explicit environment cont
 - `{{SITE}}/llms-full.txt`: the complete reference in one Markdown file.
 - `{{SITE}}/docs/llms.txt`: the docs scoped alias of this index.
 - `{{SITE}}/docs`: the human documentation site.
+- `{{SITE}}/demo`: the live ConversationWidget demo.
 - `{{SITE}}/docs/reference`: the human API reference.
+- `{{SITE}}/docs/agents`: the human agent kit guide.
 - `{{SITE}}/docs/troubleshooting`: the human troubleshooting guide.
 
 The package version in this document is {{VERSION}}. The source of truth for public behavior is the exported TypeScript surface and the pages listed above.

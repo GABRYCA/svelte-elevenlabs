@@ -105,6 +105,14 @@ const DEFAULT_SAMPLE_RATE = 16_000;
 const DEFAULT_CHUNK_MS = 100;
 const VAD_ATTACK_FRAMES = 2;
 const VAD_RELEASE_FRAMES = 8;
+/** Keep dropping agent chunks for a moment after a barge-in or user speech. */
+const PLAYBACK_SUPPRESSION_MS = 300;
+/**
+ * Wait this long after the last scheduled chunk before reporting idle.
+ * TTS streams sentence by sentence, and the gap between sentences can be
+ * close to a second, so a short gap does not mean the response is finished.
+ */
+const PLAYBACK_IDLE_GRACE_MS = 1_000;
 
 /** Stop every track on a media stream, even after the manager was closed. */
 function stopStream(stream: MediaStream | null): void {
@@ -870,11 +878,13 @@ export class AudioManager {
 
 		const parsed = typeof format === 'string' ? parseAudioFormat(format) : format;
 
-		// Drop late chunks while the user is actively barging in.
+		// Drop late chunks while the user is barging in, and for a short
+		// grace period after the interruption. Checking only the timestamp
+		// let agent audio resume after 300 ms even while the user was still
+		// speaking.
 		if (
 			this.#options.interruptOnUserSpeech !== false &&
-			this.#userSpeaking &&
-			performance.now() < this.#suppressPlaybackUntil
+			(this.#userSpeaking || performance.now() < this.#suppressPlaybackUntil)
 		) {
 			return false;
 		}
@@ -904,11 +914,11 @@ export class AudioManager {
 			if (this.#nextStartTime < now) {
 				this.#nextStartTime = now + 0.02;
 			}
-			// Recover from a long stall instead of scheduling seconds into the future.
-			if (this.#nextStartTime - now > 1.5) {
-				this.#nextStartTime = now + 0.02;
-			}
-
+			// Fast TTS streams can deliver many seconds of audio in a few
+			// seconds. Keep every chunk in order; resetting the cursor here
+			// collapsed the backlog into overlapping audio and made responses
+			// sound truncated. A real stall is handled by the branch above
+			// when the context clock catches up with the scheduled cursor.
 			const startAt = this.#nextStartTime;
 			source.start(startAt);
 			this.#nextStartTime = startAt + buffer.duration;
@@ -968,7 +978,7 @@ export class AudioManager {
 
 		this.#playback.clear();
 		this.#nextStartTime = 0;
-		this.#suppressPlaybackUntil = performance.now() + 300;
+		this.#suppressPlaybackUntil = performance.now() + PLAYBACK_SUPPRESSION_MS;
 		this.#setOutputActive(false);
 	}
 
@@ -1392,7 +1402,10 @@ export class AudioManager {
 			this.#speechFrames += 1;
 			if (!this.#userSpeaking && this.#speechFrames >= VAD_ATTACK_FRAMES) {
 				this.#setUserSpeaking(true);
-				if (this.#options.interruptOnUserSpeech !== false && this.#outputActive) {
+				if (
+					this.#options.interruptOnUserSpeech !== false &&
+					(this.#outputActive || this.#playback.size > 0)
+				) {
 					this.flushPlayback();
 					this.#options.onLocalInterruption?.();
 				}
@@ -1415,6 +1428,9 @@ export class AudioManager {
 		if (!speaking) {
 			this.#speechFrames = 0;
 			this.#silenceFrames = 0;
+			// Drop stale chunks from the interrupted response that may still
+			// be in flight after the user stops speaking.
+			this.#suppressPlaybackUntil = performance.now() + PLAYBACK_SUPPRESSION_MS;
 		}
 		this.#options.onUserSpeakingChange?.(speaking);
 	}
@@ -1433,7 +1449,8 @@ export class AudioManager {
 
 		if (this.#idleTimer) clearTimeout(this.#idleTimer);
 		const generation = this.#playbackGeneration;
-		const delay = Math.max(0, (this.#nextStartTime - ctx.currentTime) * 1000) + 140;
+		const delay =
+			Math.max(0, (this.#nextStartTime - ctx.currentTime) * 1000) + PLAYBACK_IDLE_GRACE_MS;
 
 		this.#idleTimer = setTimeout(() => {
 			if (this.#closed || generation !== this.#playbackGeneration) return;

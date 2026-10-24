@@ -2,13 +2,14 @@
 	import { PUBLIC_ELEVENLABS_AGENT_ID, PUBLIC_HOSTING_MODE } from '$app/env/public';
 	import { resolve } from '$app/paths';
 	import { onDestroy, onMount } from 'svelte';
+	import pkg from '../../package.json';
 	import { AudioManager, AudioVisualizer, useConversation, type AudioDeviceInfo } from '#lib';
 	import ThemeToggle from './_components/ThemeToggle.svelte';
 
 	const configuredAgentId = (PUBLIC_ELEVENLABS_AGENT_ID ?? '').trim();
 	const staticHosting = PUBLIC_HOSTING_MODE === 'static';
 	const installCommand = 'bun add svelte-elevenlabs';
-	const version = '0.5.1';
+	const version = pkg.version;
 	const legalDisclaimer =
 		'This is an independent community project. Not affiliated with or endorsed by ElevenLabs Inc.';
 
@@ -300,6 +301,7 @@
 			<a href="#architecture">Architecture</a>
 			<a href="#install">Install</a>
 			<a href="#api">API</a>
+			<a href={resolve('/demo')}>Demo</a>
 			<a href={resolve('/docs')}>Docs</a>
 		</nav>
 
@@ -333,6 +335,10 @@
 					<a class="button button--ink" href="#console">
 						<span>Open the console</span>
 						<span class="button__arrow" aria-hidden="true">↘</span>
+					</a>
+					<a class="text-link" href={resolve('/demo')}>
+						Try the live demo
+						<span aria-hidden="true">→</span>
 					</a>
 					<a class="text-link" href={resolve('/docs')}>
 						Read the docs
@@ -1086,6 +1092,16 @@ bun run dev</code
 						classes can be discovered. Scoped component styles do not require it.
 					</p>
 				</div>
+
+				<div class="install__note install__note--agents">
+					<span class="install__note-mark" aria-hidden="true">A</span>
+					<p>
+						Using Claude Code, Cursor, OpenCode, Copilot, Windsurf, Cline, or Gemini CLI? Run
+						<code>bunx svelte-elevenlabs agents install</code> to add one reviewed guide to the file
+						your tool already reads, then see the
+						<a href={resolve('/docs/agents')}>agent kit docs</a>.
+					</p>
+				</div>
 			</div>
 		</section>
 
@@ -1249,7 +1265,9 @@ bun run dev</code
 				<a href="#architecture">Architecture</a>
 				<a href="#install">Install</a>
 				<a href="#api">API</a>
+				<a href={resolve('/demo')}>Demo</a>
 				<a href={resolve('/docs')}>Docs</a>
+				<a href={resolve('/docs/agents')}>Agent kit</a>
 				<a href={resolve('/llms.txt')} title="Machine readable documentation index">llms.txt</a>
 				<a href="https://github.com/GABRYCA/svelte-elevenlabs" rel="noreferrer">GitHub ↗</a>
 				<a href="https://elevenlabs.io/docs/conversational-ai/overview" rel="noreferrer">
@@ -3671,6 +3689,16 @@ bun run dev</code
 		font-family: var(--font-mono);
 		font-size: 0.66rem;
 		line-height: 1.6;
+	}
+
+	.install__note a {
+		color: var(--agent);
+		text-underline-offset: 0.2em;
+	}
+
+	.install__note--agents {
+		margin-top: 1rem;
+		padding-top: 0.9rem;
 	}
 
 	.api {

@@ -5,7 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.0] - 2026-10-24
+
+### Added
+
+- `svelte-elevenlabs agents` command with `list`, `install`, and `print` subcommands. It writes one canonical guide into the configuration file used by Claude Code, Cursor, OpenCode, GitHub Copilot, Windsurf, Cline, Gemini CLI, or any `AGENTS.md` aware tool.
+- Canonical agent guide at `agent-kit/instructions.md`, plus target detection, `--all`, `--force`, `--dry-run`, `--cwd`, and `--tool` options.
+- Agent kit documentation at `/docs/agents`, with install commands, target paths, shared file behavior, manual setup, and safety notes.
+- Live demo page at `/demo` with a real `ConversationWidget` session and a focus view for clean recording.
+- A short recorded demonstration of the widget at the top of the README, with an animated preview and a link to the MP4 with sound.
+- `llms.txt` and `llms-full.txt` now describe the agent kit and its install command.
+
+### Changed
+
+- The published package now includes `agent-kit` and `bin` alongside `dist`.
+- Showcase and docs versions are read from `package.json` instead of a hardcoded string.
+- The showcase masthead and hero link to the demo, while the install section and footer link to the agent kit.
+- Bumped the package version from `0.5.1` to `0.6.0`.
+
+### Fixed
+
+- Local barge-in now keeps dropping agent audio chunks for the whole user utterance, not only for 300 ms after the flush, so a late chunk cannot resume over the microphone.
+- Agent playback stays active across short text-to-speech gaps instead of reporting idle between sentences, which also prevents the widget from showing an open line while a response is still streaming.
+- Fast text-to-speech streams that deliver several seconds of audio in a short burst are now scheduled in order. Previously the playback cursor reset to the current time, which overlapped chunks and made a full response sound truncated.
+
 
 ## [0.5.1] - 2026-10-23
 
